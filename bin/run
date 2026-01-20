@@ -1,0 +1,8 @@
+#!/usr/bin/env ruby
+# typed: true
+# Sorbet reads this marker to enable type checking for the script.
+
+require_relative "../app/app/start"
+
+result = App::App.start
+puts result.inspect

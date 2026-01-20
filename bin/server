@@ -1,0 +1,4 @@
+#!/usr/bin/env ruby
+# typed: false
+
+exec("bundle", "exec", "rackup", "-p", ENV.fetch("PORT", "4567"))

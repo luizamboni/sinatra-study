@@ -1,0 +1,9 @@
+#!/usr/bin/env ruby
+# typed: false
+
+require "irb"
+
+require_relative "../app/app/start"
+require_relative "../app/api/api"
+
+IRB.start

@@ -1,0 +1,169 @@
+module App
+  module App
+    class Container
+      attr_reader service: Services::DynamicEntityService
+    end
+
+    def self.build: () -> Container
+    def self.seed: (service: Services::DynamicEntityService) -> void
+    def self.start: () -> Hash[Symbol, Array[App::Domain::Entity]]
+  end
+
+  module Infrastructure
+    class Repository[T]
+      def initialize: (type: Class[T]) -> void
+      def add: (item: T) -> T
+      def all: () -> Array[T]
+      def find_by: () { (T) -> bool } -> T?
+      def clear: () -> Array[T]
+    end
+
+    class SqliteRepository[T]
+      def initialize: (type: Class[T], db_path: String) -> void
+      def add: (item: T) -> T
+      def all: () -> Array[T]
+      def find_by: () { (T) -> bool } -> T?
+      def clear: () -> Array[T]
+    end
+  end
+
+  module Domain
+    class Schema
+      attr_reader name: String
+      attr_reader fields: Hash[Symbol, Symbol]
+
+      def initialize: (name: String | Symbol, fields: Array[Field]) -> void
+    end
+
+    class Entity
+      attr_reader schema_name: String
+      attr_reader attributes: Array[Attribute]
+
+      def initialize: (schema_name: String | Symbol, attributes: Array[Attribute]) -> void
+    end
+
+    class Field
+      attr_reader name: Symbol
+      attr_reader type: Symbol
+
+      def initialize: (name: String | Symbol, type: Symbol | String) -> void
+    end
+
+    class Attribute
+      attr_reader name: Symbol
+      attr_reader value: untyped
+
+      def initialize: (name: String | Symbol, value: untyped) -> void
+    end
+  end
+
+  module Services
+    class DynamicEntityService
+      def initialize: (?schema_service: SchemaService, ?entity_service: EntityService) -> void
+      def define_schema: (name: String | Symbol, fields: Array[Domain::Field]) -> Domain::Schema
+      def create_entity: (schema_name: String | Symbol, attributes: Array[Domain::Attribute]) -> Domain::Entity
+      def schemas: () -> Array[Domain::Schema]
+      def entities_for: (schema_name: String | Symbol) -> Array[Domain::Entity]
+    end
+
+    class SchemaService
+      def initialize: (?schema_repo: Infrastructure::Repository[Domain::Schema] | Infrastructure::SqliteRepository[Domain::Schema]) -> void
+      def define_schema: (name: String | Symbol, fields: Array[Domain::Field]) -> Domain::Schema
+      def find_schema: (name: String | Symbol) -> Domain::Schema?
+      def schemas: () -> Array[Domain::Schema]
+    end
+
+    class EntityService
+      def initialize: (?entity_repo: Infrastructure::Repository[Domain::Entity] | Infrastructure::SqliteRepository[Domain::Entity]) -> void
+      def add_entity: (entity: Domain::Entity) -> Domain::Entity
+      def entities_for: (schema_name: String | Symbol) -> Array[Domain::Entity]
+      def all: () -> Array[Domain::Entity]
+    end
+  end
+
+  module Api
+    class AppApiRoutes
+    end
+
+    class OpenApi
+      def self.spec: () -> Hash[String, untyped]
+      def self.spec_for_schema: (schema: Domain::Schema) -> Hash[String, untyped]
+      def self.ui_html: (?spec_url: String) -> String
+    end
+
+    class OpenApiRoutes
+      def self.register: (app: untyped) -> void
+    end
+  end
+  module Controllers
+    class Response[T]
+      attr_reader status: Integer
+      attr_reader body: T
+    end
+
+    class Request[T]
+      attr_reader params: Hash[String, String]
+      attr_reader json: T
+    end
+
+    class ErrorResponse
+      attr_reader error: String
+    end
+
+    class SchemasController
+      class FieldPayload
+        attr_reader name: String
+        attr_reader type: String
+      end
+
+      class SchemaPayload
+        attr_reader name: String
+        attr_reader fields: Array[FieldPayload]
+      end
+
+      class SchemasResponse
+        attr_reader schemas: Array[SchemaPayload]
+      end
+
+      class CreateSchemaRequest
+        attr_reader name: String
+        attr_reader fields: Array[FieldPayload]
+
+        def self.from_hash: (Hash[String, untyped]) -> CreateSchemaRequest
+      end
+
+      def index: (service: Services::DynamicEntityService, request: Request[untyped]) -> Response[SchemasResponse]
+      def create: (service: Services::DynamicEntityService, request: Request[CreateSchemaRequest]) -> Response[SchemaPayload]
+    end
+
+    class EntitiesController
+      class AttributePayload
+        attr_reader name: String
+        attr_reader value: String | Integer | Float | Numeric | bool
+      end
+
+      class EntityPayload
+        attr_reader schema: String
+        attr_reader attributes: Array[AttributePayload]
+      end
+
+      class EntityItem
+        attr_reader attributes: Array[AttributePayload]
+      end
+
+      class EntitiesResponse
+        attr_reader schema: String
+        attr_reader entities: Array[EntityItem]
+      end
+
+      class CreateEntityRequest
+        attr_reader attributes: Array[AttributePayload]
+
+        def self.from_hash: (Hash[String, untyped]) -> CreateEntityRequest
+      end
+
+      def index: (service: Services::DynamicEntityService, request: Request[untyped]) -> Response[EntitiesResponse]
+      def create: (service: Services::DynamicEntityService, request: Request[CreateEntityRequest]) -> Response[EntityPayload]
+    end
+  end
+end

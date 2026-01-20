@@ -1,0 +1,90 @@
+#!/usr/bin/env ruby
+# typed: false
+
+require "json"
+require "net/http"
+require "uri"
+
+base_url = ENV.fetch("API_URL", "http://localhost:4567")
+timestamp = Time.now.strftime("%Y%m%d%H%M%S")
+user_schema = "user_#{timestamp}"
+post_schema = "post_#{timestamp}"
+
+def post_json(base_url, path, payload)
+  uri = URI.join(base_url, path)
+  request = Net::HTTP::Post.new(uri)
+  request["Content-Type"] = "application/json"
+  request.body = JSON.generate(payload)
+
+  response = Net::HTTP.start(uri.hostname, uri.port) { |http| http.request(request) }
+
+  unless response.is_a?(Net::HTTPSuccess)
+    raise "POST #{path} failed: #{response.code} #{response.body}"
+  end
+
+  JSON.parse(response.body)
+end
+
+schemas = [
+  {
+    name: user_schema,
+    fields: [
+      { name: :name, type: :string },
+      { name: :age, type: :integer },
+      { name: :admin, type: :boolean }
+    ]
+  },
+  {
+    name: post_schema,
+    fields: [
+      { name: :title, type: :string },
+      { name: :body, type: :string },
+      { name: :published, type: :boolean }
+    ]
+  }
+]
+
+entities = [
+  {
+    schema: user_schema,
+    attributes: [
+      { name: :name, value: "Ana" },
+      { name: :age, value: 30 },
+      { name: :admin, value: false }
+    ]
+  },
+  {
+    schema: user_schema,
+    attributes: [
+      { name: :name, value: "Rui" },
+      { name: :age, value: 42 },
+      { name: :admin, value: true }
+    ]
+  },
+  {
+    schema: post_schema,
+    attributes: [
+      { name: :title, value: "Hello" },
+      { name: :body, value: "First post" },
+      { name: :published, value: true }
+    ]
+  },
+  {
+    schema: post_schema,
+    attributes: [
+      { name: :title, value: "Draft" },
+      { name: :body, value: "Work in progress" },
+      { name: :published, value: false }
+    ]
+  }
+]
+
+schemas.each do |schema|
+  post_json(base_url, "/schemas", schema)
+end
+
+entities.each do |entity|
+  post_json(base_url, "/entities/#{entity[:schema]}", attributes: entity[:attributes])
+end
+
+puts "Seeded schemas and entities via #{base_url}"
