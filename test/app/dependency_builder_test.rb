@@ -13,6 +13,8 @@ class DependencyBuilderTest < Minitest::Test
       App::App::DependencyBuilder.build(repository_class: App::Infrastructure::Repository),
       App::App::DependencyBuilder::Container
     )
+    @container.schema_repo.clear
+    @container.entity_repo.clear
   end
 
   sig { void }
@@ -24,13 +26,15 @@ class DependencyBuilderTest < Minitest::Test
 
   sig { void }
   def test_controllers_share_wired_service
+    schema_name = "user-wired-services-example"
+
     @container.dynamic_entity_service.define_schema(
-      name: :user,
+      name: schema_name,
       fields: [App::Domain::Field.new(name: :name, type: :string)]
     )
 
     @container.dynamic_entity_service.create_entity(
-      schema_name: :user,
+      schema_name: schema_name,
       attributes: [App::Domain::Attribute.new(name: :name, value: "Ana")]
     )
 
@@ -38,12 +42,12 @@ class DependencyBuilderTest < Minitest::Test
       request: App::Controllers::Request.new(params: {}, json: nil)
     )
     assert_equal 1, schemas_response.body.schemas.size
-    assert_equal "user", schemas_response.body.schemas.first.name
+    assert_equal schema_name, schemas_response.body.schemas.first.name
 
     entities_response = @container.entities_controller.index(
-      request: App::Controllers::Request.new(params: { "schema" => "user" }, json: nil)
+      request: App::Controllers::Request.new(params: { "schema" => schema_name }, json: nil)
     )
-    assert_equal "user", entities_response.body.schema
+    assert_equal schema_name, entities_response.body.schema
     assert_equal 1, entities_response.body.entities.size
   end
 end

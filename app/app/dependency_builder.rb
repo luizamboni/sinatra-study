@@ -17,6 +17,18 @@ module App::App::DependencyBuilder
 
   class Container
     extend T::Sig
+    @instance = T.let(nil, T.nilable(Container))
+
+    class << self
+      extend T::Sig
+
+      sig { params(db_path: String, repository_class: T.class_of(Object)).returns(Container) }
+      def instance(db_path:, repository_class:)
+        @instance ||= new(db_path: db_path, repository_class: repository_class)
+      end
+    end
+
+    private_class_method :new
 
     sig { params(db_path: String, repository_class: T.class_of(Object)).void }
     def initialize(db_path:, repository_class: App::Infrastructure::SqliteRepository)
@@ -74,8 +86,14 @@ module App::App::DependencyBuilder
     end
   end
 
-  sig { params(db_path: String, repository_class: T.class_of(Object)).returns(Container) }
-  def self.build(db_path: "db/app.sqlite3", repository_class: App::Infrastructure::SqliteRepository)
-    Container.new(db_path: db_path, repository_class: repository_class)
+  sig { params(repository_class: T.class_of(Object)).returns(Container) }
+  def self.build(repository_class: App::Infrastructure::SqliteRepository)
+    db_path = if ENV["RACK_ENV"] == "test"
+      ":memory:"
+    else
+      "db/app.sqlite3"
+    end
+    
+    Container.instance(db_path: db_path, repository_class: repository_class)
   end
 end
