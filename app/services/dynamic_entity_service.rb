@@ -47,7 +47,7 @@ module App::Services
 
     sig { returns(T::Array[App::Domain::Schema]) }
     def schemas
-      @schema_service.schemas
+      @schema_service.all
     end
 
     sig { params(schema_name: T.any(String, Symbol)).returns(T::Array[App::Domain::Entity]) }

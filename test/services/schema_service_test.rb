@@ -27,7 +27,7 @@ class SchemaServiceTest < Minitest::Test
   end
 
   sig { void }
-  def test_schemas_returns_all
+  def test_all_returns_all
     user = @service.define_schema(
       name: :user,
       fields: [
@@ -41,7 +41,7 @@ class SchemaServiceTest < Minitest::Test
       ]
     )
 
-    assert_equal [user, post], @service.schemas
+    assert_equal [user, post], @service.all
   end
 
   sig { void }
