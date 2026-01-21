@@ -33,6 +33,7 @@ module App::Api::Helpers
     params(coerce_class: T.nilable(T.class_of(Object))).returns(App::Controllers::Request[T.untyped])
   end
   def build_request(coerce_class: nil)
+
     if coerce_class && coerce_class.respond_to?(:from_hash)
       json = coerce_class.from_hash(require_json_object)
     end

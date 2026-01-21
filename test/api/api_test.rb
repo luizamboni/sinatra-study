@@ -10,11 +10,11 @@ class ApiTest < Minitest::Test
   include Rack::Test::Methods
 
   def app
-    App::Api::API
+    App::Api::AppApiRoutes
   end
 
   def setup
-    App::Api::SinatraSetup.configure(App::Api::API)
+    App::Api::SinatraSetup.configure(app)
   end
 
   def json(body)
@@ -31,21 +31,22 @@ class ApiTest < Minitest::Test
   end
 
   def test_creates_schema_and_entity
+    timestamp = Time.now.strftime("%Y%m%d%H%M%S")
+    schema_name = "user-#{timestamp}"
     post_json(
       "/schemas",
       {
-        name: "user",
+        name: schema_name,
         fields: [
           { name: "name", type: "string" },
           { name: "age", type: "integer" }
         ]
       }
     )
-
     assert_equal 201, last_response.status
 
     post_json(
-      "/entities/user",
+      "/entities/#{schema_name}",
       {
         attributes: [
           { name: "name", value: "Ana" },
@@ -56,7 +57,7 @@ class ApiTest < Minitest::Test
 
     assert_equal 200, last_response.status
     entity = json(last_response.body)
-    assert_equal "user", entity["schema"]
+    assert_equal schema_name, entity["schema"]
     assert_equal(
       [
         { "name" => "name", "value" => "Ana" },

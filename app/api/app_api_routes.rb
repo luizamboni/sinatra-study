@@ -14,7 +14,6 @@ module App::Api
   class AppApiRoutes < Sinatra::Base
     configure do
       SinatraSetup.configure(self)
-      SinatraSetup.register_open_api_routes(self, settings.dynamic_entity_service)
     end
 
     helpers Helpers
@@ -52,10 +51,46 @@ module App::Api
     end
 
 
+    get "/swagger.json" do
+      json_response(App::Api::OpenApi.spec)
+    end
+
+    get "/swagger/:schema.json" do
+      schema_name = params.fetch("schema").to_s
+      schema = dynamic_entity_service.find_schema(name: schema_name)
+      unless schema
+        return json_response({ error: "Schema not found: #{schema_name}" }, 404)
+      end
+
+      json_response(App::Api::OpenApi.spec_for_schema(schema: schema))
+    end
+
+    get "/docs" do
+      content_type :html
+      App::Api::OpenApi.ui_html
+    end
+
+    get "/docs/:schema" do
+
+      schema_name = params.fetch("schema").to_s
+      schema = dynamic_entity_service.find_schema(name: schema_name)
+      unless schema
+        return json_response({ error: "Schema not found: #{schema_name}" }, 404)
+      end
+
+      content_type :html
+      App::Api::OpenApi.ui_html(spec_url: "/swagger/#{schema_name}.json")
+    end
+
+
     private
 
+    def dynamic_entity_service
+      @dynamic_entity_service ||= container.dynamic_entity_service
+    end
+
     def container
-      settings.container
+      @container ||= App::App::DependencyBuilder.build()
     end
 
     def schemas_controller
