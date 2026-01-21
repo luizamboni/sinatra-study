@@ -93,7 +93,7 @@ class App::Controllers::SchemasController < App::Controllers::Base
     ).returns(Response[Schemas::SchemaPayload])
   end
   def create(request:)
-    payload = request.json
+    payload = T.must(request.json)
     fields = payload.fields.map do |field|
       Domain::Field.new(name: field.name, type: field.type)
     end

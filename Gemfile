@@ -2,7 +2,6 @@ source "https://rubygems.org"
 
 # Add gems here.
 gem "rbs"
-gem "sorbet-runtime"
 gem "minitest"
 gem "sinatra"
 gem "rackup"
@@ -11,3 +10,9 @@ gem "rerun"
 gem "rack-test"
 gem "sqlite3"
 gem "debug"
+
+group :development do
+  gem 'sorbet'
+  gem 'sorbet-runtime'
+  gem 'tapioca', "0.17.10", require: false
+end

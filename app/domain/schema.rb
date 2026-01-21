@@ -27,15 +27,8 @@ module App::Domain
 
     sig { params(fields: T::Array[Field]).returns(T::Hash[Symbol, FieldType]) }
     def normalize_fields(fields:)
-      unless fields.is_a?(Array) && !fields.empty?
-        raise ArgumentError, "Fields must be a non-empty Array"
-      end
 
       fields.each_with_object({}) do |field, acc|
-        unless field.is_a?(Field)
-          raise ArgumentError, "Each field must be an App::Domain::Field"
-        end
-
         acc[field.name] = field.type
       end
     end

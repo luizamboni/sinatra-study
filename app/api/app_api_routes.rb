@@ -1,7 +1,6 @@
 # typed: false
 
 require "sinatra/base"
-require "debug"
 
 require_relative "../app"
 require_relative "../app/dependency_builder"

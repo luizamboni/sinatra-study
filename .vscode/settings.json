@@ -1,3 +1,19 @@
 {
-  "sorbet.enabled": true
+    "sorbet.lspConfigs": [
+        {
+            "id": "custom-path",
+            "name": "Sorbet (Custom Path)",
+            "description": "Run Sorbet using a specific bundle path",
+            "command": [
+              "/Users/luizamboni/.rubies/ruby-3.3.0/bin/ruby", 
+              "-S",
+              "/Users/luizamboni/.rubies/ruby-3.3.0/bin/bundle",
+              "exec", 
+              "srb", 
+              "typecheck", 
+              "--lsp"
+            ]
+        }
+    ],
+    "sorbet.enabled": true
 }

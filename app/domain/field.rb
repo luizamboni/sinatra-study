@@ -44,9 +44,6 @@ module App::Domain
 
     sig { params(type: T.any(Symbol, String)).returns(Symbol) }
     def normalize_type(type:)
-      unless type.is_a?(Symbol) || type.is_a?(String)
-        raise ArgumentError, "Field type must be a Symbol or String"
-      end
 
       normalized = type.to_sym
       unless ALLOWED_TYPES.include?(normalized)

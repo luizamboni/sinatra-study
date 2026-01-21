@@ -7,6 +7,7 @@ require_relative "../../app/controllers/shared/request"
 class DependencyBuilderTest < Minitest::Test
   extend T::Sig
 
+
   sig { void }
   def setup
     @container = T.let(

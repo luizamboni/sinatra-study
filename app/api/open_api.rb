@@ -31,7 +31,7 @@ module App::Api
               metadata: metadata,
               schemas: schemas
             )
-            paths[path][verb] = route_spec
+            T.must(paths[path])[verb] = route_spec
           end
         end
       end
@@ -469,7 +469,7 @@ module App::Api
 
     sig { params(klass: T.class_of(T::Struct)).returns(String) }
     def self.component_name(klass)
-      klass.name.split("::").last
+      T.must(klass.name).split("::").last
     end
 
     sig do

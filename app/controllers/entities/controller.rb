@@ -110,7 +110,7 @@ class App::Controllers::EntitiesController < App::Controllers::Base
   end
   def create(request:)
     schema_name = request.params.fetch("schema")
-    payload = request.json
+    payload = T.must(request.json)
     attributes = payload.attributes.map do |attribute|
       Domain::Attribute.new(name: attribute.name, value: attribute.value)
     end
