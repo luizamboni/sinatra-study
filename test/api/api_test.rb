@@ -1,4 +1,4 @@
-# typed: false
+# typed: true
 
 require "json"
 require "rack/test"
