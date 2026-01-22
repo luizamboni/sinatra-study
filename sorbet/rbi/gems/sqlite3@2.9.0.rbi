@@ -7,7 +7,6 @@
 
 module Process
   extend ::SQLite3::ForkSafety::CoreExt
-  extend ::Bundler::ConnectionPool::ForkTracker
 end
 
 # source://sqlite3//lib/sqlite3/constants.rb#1
