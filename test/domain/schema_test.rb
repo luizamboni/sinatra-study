@@ -45,7 +45,7 @@ class SchemaTest < Minitest::Test
     error = assert_raises(TypeError) do
       App::Domain::Schema.new(
         name: :user,
-        fields: [App::Domain::Field.new(name: :name, type: String)]
+        fields: [App::Domain::Field.new(name: :name, type: T.unsafe(String))]
       )
     end
 

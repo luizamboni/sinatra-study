@@ -27,7 +27,7 @@ module App::Domain
 
     sig { params(fields: T::Array[Field]).returns(T::Hash[Symbol, FieldType]) }
     def normalize_fields(fields:)
-      unless fields.is_a?(Array) && !fields.empty?
+      if fields.empty?
         raise ArgumentError, "Fields must be a non-empty Array"
       end
 

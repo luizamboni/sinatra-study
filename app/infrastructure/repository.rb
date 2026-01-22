@@ -8,7 +8,7 @@ module App::Infrastructure
     extend T::Generic
     extend T::Sig
 
-  # Generic type parameter for the repository's element type.
+    # Generic type parameter for the repository's element type.
     Elem = type_member
 
     sig { params(type: T::Class[Object]).void }
@@ -44,9 +44,9 @@ module App::Infrastructure
 
     sig { params(item: Elem).void }
     def validate_type!(item:)
-      return if item.is_a?(@type)
+      return if T.unsafe(item).is_a?(@type)
 
-      raise ArgumentError, "Expected #{@type}, got #{item.class}"
+      raise ArgumentError, "Expected #{@type}, got #{T.unsafe(item).class}"
     end
   end
 end

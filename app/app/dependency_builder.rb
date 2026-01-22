@@ -15,6 +15,13 @@ require_relative "../controllers/entities/controller"
 module App::App::DependencyBuilder
   extend T::Sig
 
+  RepoClass = T.type_alias do
+    T.any(
+      T.class_of(App::Infrastructure::Repository),
+      T.class_of(App::Infrastructure::SqliteRepository)
+    )
+  end
+
   class Container
     extend T::Sig
     @instance = T.let(nil, T.nilable(Container))
@@ -22,7 +29,7 @@ module App::App::DependencyBuilder
     class << self
       extend T::Sig
 
-      sig { params(db_path: String, repository_class: T.class_of(Object)).returns(Container) }
+      sig { params(db_path: String, repository_class: RepoClass).returns(Container) }
       def instance(db_path:, repository_class:)
         @instance ||= new(db_path: db_path, repository_class: repository_class)
       end
@@ -30,10 +37,10 @@ module App::App::DependencyBuilder
 
     private_class_method :new
 
-    sig { params(db_path: String, repository_class: T.class_of(Object)).void }
+    sig { params(db_path: String, repository_class: RepoClass).void }
     def initialize(db_path:, repository_class: App::Infrastructure::SqliteRepository)
       @db_path = T.let(db_path, String)
-      @repository_class = T.let(repository_class, T.class_of(Object))
+      @repository_class = T.let(repository_class, RepoClass)
     end
 
     sig { returns(T.untyped) }
@@ -79,14 +86,16 @@ module App::App::DependencyBuilder
     sig { params(type: T.class_of(Object)).returns(T.untyped) }
     def build_repo(type)
       if @repository_class == App::Infrastructure::Repository
-        @repository_class.new(type: type)
+        repo_class = T.cast(@repository_class, T.class_of(App::Infrastructure::Repository))
+        repo_class.new(type: type)
       else
-        @repository_class.new(type: type, db_path: @db_path)
+        repo_class = T.cast(@repository_class, T.class_of(App::Infrastructure::SqliteRepository))
+        repo_class.new(type: type, db_path: @db_path)
       end
     end
   end
 
-  sig { params(repository_class: T.class_of(Object)).returns(Container) }
+  sig { params(repository_class: RepoClass).returns(Container) }
   def self.build(repository_class: App::Infrastructure::SqliteRepository)
     db_path = if ENV["RACK_ENV"] == "test"
       ":memory:"

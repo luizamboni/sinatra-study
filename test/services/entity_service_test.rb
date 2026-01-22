@@ -6,9 +6,16 @@ require_relative "../test_helper"
 class EntityServiceTest < Minitest::Test
   extend T::Sig
 
+  @service = T.let(nil, T.nilable(App::Services::EntityService))
+
   sig { void }
   def setup
-    @service = T.let(App::Services::EntityService.new, App::Services::EntityService)
+    @service = T.let(App::Services::EntityService.new, T.nilable(App::Services::EntityService))
+  end
+
+  sig { returns(App::Services::EntityService) }
+  def service
+    T.must(@service)
   end
 
   sig { void }
@@ -18,10 +25,10 @@ class EntityServiceTest < Minitest::Test
       attributes: [App::Domain::Attribute.new(name: :name, value: "Ana")]
     )
 
-    result = @service.add_entity(entity: entity)
+    result = service.add_entity(entity: entity)
 
     assert_equal entity, result
-    assert_equal [entity], @service.all
+    assert_equal [entity], service.all
   end
 
   sig { void }
@@ -35,10 +42,10 @@ class EntityServiceTest < Minitest::Test
       attributes: [App::Domain::Attribute.new(name: :title, value: "Hello")]
     )
 
-    @service.add_entity(entity: user)
-    @service.add_entity(entity: post)
+    service.add_entity(entity: user)
+    service.add_entity(entity: post)
 
-    assert_equal [user], @service.entities_for(schema_name: :user)
-    assert_equal [post], @service.entities_for(schema_name: :post)
+    assert_equal [user], service.entities_for(schema_name: :user)
+    assert_equal [post], service.entities_for(schema_name: :post)
   end
 end

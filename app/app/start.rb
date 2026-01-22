@@ -23,8 +23,8 @@ module App::App
     schema_names = Seed.run(container: container)
 
     {
-      users: container.dynamic_entity_service.entities_for(schema_name: schema_names[:users]),
-      posts: container.dynamic_entity_service.entities_for(schema_name: schema_names[:posts])
+      users: container.dynamic_entity_service.entities_for(schema_name: T.must(schema_names[:users])),
+      posts: container.dynamic_entity_service.entities_for(schema_name: T.must(schema_names[:posts]))
     }
   end
 end

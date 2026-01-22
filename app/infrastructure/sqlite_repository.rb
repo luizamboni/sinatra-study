@@ -34,9 +34,9 @@ module App::Infrastructure
     def add(item:)
       validate_type!(item:)
       if schema_repo?
-        insert_schema(item)
+        insert_schema(T.cast(item, App::Domain::Schema))
       elsif entity_repo?
-        insert_entity(item)
+        insert_entity(T.cast(item, App::Domain::Entity))
       else
         raise ArgumentError, "Unsupported type: #{@type}"
       end
@@ -108,9 +108,9 @@ module App::Infrastructure
 
     sig { params(item: Elem).void }
     def validate_type!(item:)
-      return if item.is_a?(@type)
+      return if T.unsafe(item).is_a?(@type)
 
-      raise ArgumentError, "Expected #{@type}, got #{item.class}"
+      raise ArgumentError, "Expected #{@type}, got #{T.unsafe(item).class}"
     end
 
     sig { params(schema: App::Domain::Schema).void }

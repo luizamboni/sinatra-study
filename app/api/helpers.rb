@@ -7,48 +7,52 @@ require_relative "../controllers/shared/request"
 
 module App::Api::Helpers
   extend T::Sig
+  extend T::Helpers
+  requires_ancestor { Sinatra::Base }
 
   sig { returns(App::Services::DynamicEntityService) }
   def dynamic_entity_service
-    settings.dynamic_entity_service
+    T.cast(T.unsafe(self).settings.dynamic_entity_service, App::Services::DynamicEntityService)
   end
 
   sig { returns(T::Hash[String, T.untyped]) }
   def require_json_object
+    request = T.unsafe(self).request
     body = request.body&.read.to_s
-    raise ArgumentError, "Request body is empty" if body.strip.empty?
+    Kernel.raise ArgumentError, "Request body is empty" if body.strip.empty?
 
     parsed = JSON.parse(body)
     unless parsed.is_a?(Hash)
-      raise ArgumentError, "Request body must be a JSON object"
+      Kernel.raise ArgumentError, "Request body must be a JSON object"
     end
     parsed
   rescue JSON::ParserError
-    raise ArgumentError, "Request body must be valid JSON"
+    Kernel.raise ArgumentError, "Request body must be valid JSON"
   ensure
     request.body.rewind if request.body.respond_to?(:rewind)
   end
 
-  sig do 
-    params(coerce_class: T.nilable(T.class_of(Object))).returns(App::Controllers::Request[T.untyped])
+  sig do
+    params(coerce_class: T.untyped).returns(App::Controllers::Request[T.untyped])
   end
   def build_request(coerce_class: nil)
-
+    json = T.let(nil, T.untyped)
     if coerce_class && coerce_class.respond_to?(:from_hash)
-      json = coerce_class.from_hash(require_json_object)
+      json = T.unsafe(coerce_class).from_hash(require_json_object)
     end
+    params_hash = T.cast(T.unsafe(self).params, T::Hash[T.untyped, T.untyped])
     App::Controllers::Request.new(
-      params: params.to_h.transform_values(&:to_s),
+      params: params_hash.transform_values(&:to_s),
       json: json
     )
   rescue JSON::ParserError
-    raise ArgumentError, "Request body must be valid JSON"
+    Kernel.raise ArgumentError, "Request body must be valid JSON"
   end
 
   sig { params(payload: T.untyped, status_code: Integer).returns(String) }
   def json_response(payload, status_code = 200)
-    content_type :json
-    status status_code
+    T.unsafe(self).content_type :json
+    T.unsafe(self).status status_code
     JSON.generate(payload)
   end
 
@@ -57,7 +61,7 @@ module App::Api::Helpers
     case payload
     when T::Struct
       if payload.respond_to?(:to_h)
-        normalize_payload(payload.to_h)
+        normalize_payload(T.unsafe(payload).to_h)
       elsif payload.respond_to?(:serialize)
         normalize_payload(payload.serialize)
       else

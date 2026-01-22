@@ -376,7 +376,7 @@ module App::Api
       when T::Types::TypedArray
         { "type" => "array", "items" => schema_for_type(type.type, schemas) }
       when T::Types::TypedHash
-        { "type" => "object", "additionalProperties" => schema_for_type(type.value_type, schemas) }
+        { "type" => "object", "additionalProperties" => schema_for_type(type.values, schemas) }
       when T::Types::Union
         nullable, non_nil = split_nilable(type)
         schema = schema_for_type(non_nil, schemas)
@@ -462,14 +462,14 @@ module App::Api
     end
     def self.split_nilable(type)
       types = type.types
-      nullable = types.any? { |entry| entry.respond_to?(:raw_type) && entry.raw_type == NilClass }
-      non_nil = types.reject { |entry| entry.respond_to?(:raw_type) && entry.raw_type == NilClass }
+      nullable = types.any? { |entry| entry.respond_to?(:raw_type) && T.unsafe(entry).raw_type == NilClass }
+      non_nil = types.reject { |entry| entry.respond_to?(:raw_type) && T.unsafe(entry).raw_type == NilClass }
       [nullable, non_nil.first]
     end
 
     sig { params(klass: T.class_of(T::Struct)).returns(String) }
     def self.component_name(klass)
-      T.must(klass.name).split("::").last
+      T.must(T.must(klass.name).split("::").last)
     end
 
     sig do
