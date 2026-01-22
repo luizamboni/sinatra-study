@@ -29,8 +29,8 @@ class App::Controllers::Base
         action: Symbol,
         responses: T::Hash[String, T::Hash[String, T.untyped]],
         parameters: T.nilable(T::Array[T::Hash[String, T.untyped]]),
-        request_body: T.nilable(T.untyped),
-        response_body: T.nilable(T.untyped)
+        request_body: T.untyped,
+        response_body: T.untyped
       ).void
     end
     def register_route(path:, method:, summary:, action:, responses:, parameters: nil, request_body: nil, response_body: nil)
