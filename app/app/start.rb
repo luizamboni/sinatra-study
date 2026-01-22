@@ -11,7 +11,7 @@ module App::App
 
   sig { returns(App::App::DependencyBuilder::Container) }
   def self.build
-    App::App::DependencyBuilder.build(
+    DependencyBuilder.build(
       repository_class: App::Infrastructure::Repository
     )
   end
@@ -19,7 +19,7 @@ module App::App
   # Sorbet signatures document and check method return types.
   sig { returns(T::Hash[Symbol, T::Array[App::Domain::Entity]]) }
   def self.start
-    container = build
+    container = self.build
     schema_names = Seed.run(container: container)
 
     {
