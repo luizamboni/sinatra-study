@@ -59,6 +59,9 @@ module App::Services
 
     sig { params(attributes: T::Array[App::Domain::Attribute]).returns(T::Array[App::Domain::Attribute]) }
     def normalize_attributes(attributes:)
+      unless attributes.all? { |attribute| attribute.is_a?(App::Domain::Attribute) }
+        raise ArgumentError, "Each attribute must be an App::Domain::Attribute"
+      end
 
       attributes.each_with_object([]) do |attribute, acc|
         acc << attribute
