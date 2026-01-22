@@ -121,6 +121,7 @@ PLATFORMS
   ruby
 
 DEPENDENCIES
+  bundler
   debug
   minitest
   puma
