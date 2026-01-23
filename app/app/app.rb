@@ -73,6 +73,18 @@ module App::App
       @docs_proc.call(swagger_path)
     end
 
+    def configure
+      yield(@sinatra_app) if block_given?
+    end
+
+    def configure_defaults
+      configure do |app|
+        app.set :show_exceptions, false
+        app.set :protection, false
+        app.set :allow_hosts, ["localhost", "127.0.0.1", "[::1]"]
+      end
+    end
+
     private
 
     def swagger_prefix
@@ -106,19 +118,14 @@ module App::App
         responses: response_classes
       }
 
+      wrapper = self
       @sinatra_app.send(verb, path) do
-        request_payload = nil
-        if request_class
-          body = request.body&.read.to_s
-          raise ArgumentError, "Request body is empty" if body.strip.empty?
-          payload = JSON.parse(body)
-          raise ArgumentError, "Request body must be a JSON object" unless payload.is_a?(Hash)
-          request.body.rewind if request.body.respond_to?(:rewind)
-          request_payload = request_class.respond_to?(:from_hash) ? request_class.from_hash(payload) : payload
+        request_payload = request_class ? wrapper.require_json_object(request) : nil
+        if request_class && request_class.respond_to?(:from_hash)
+          request_payload = request_class.from_hash(request_payload)
         end
 
-        params_hash = params.to_h.transform_values(&:to_s)
-        request_obj = ::App::Controllers::Request.new(params: params_hash, json: request_payload)
+        request_obj = wrapper.build_request(params, request_payload)
 
         result = if block.arity <= 0
           instance_exec(&block)
@@ -145,24 +152,46 @@ module App::App
 
         content_type :json
         status response_status
-        JSON.generate(normalize_payload(response_body))
+        JSON.generate(wrapper.normalize_payload(response_body))
       end
     end
 
     def normalize_payload(payload)
       if payload.respond_to?(:serialize)
         normalize_payload(payload.serialize)
-      elsif payload.respond_to?(:to_h)
-        normalize_payload(payload.to_h)
       elsif payload.is_a?(Array)
         payload.map { |item| normalize_payload(item) }
       elsif payload.is_a?(Hash)
         payload.each_with_object({}) do |(key, value), acc|
           acc[key] = normalize_payload(value)
         end
+      elsif payload.respond_to?(:to_h)
+        normalize_payload(payload.to_h)
       else
         payload
       end
     end
+
+    def require_json_object(rack_request)
+      body = rack_request.body&.read.to_s
+      raise ArgumentError, "Request body is empty" if body.strip.empty?
+
+      parsed = JSON.parse(body)
+      unless parsed.is_a?(Hash)
+        raise ArgumentError, "Request body must be a JSON object"
+      end
+      parsed
+    rescue JSON::ParserError
+      raise ArgumentError, "Request body must be valid JSON"
+    ensure
+      rack_request.body.rewind if rack_request.body.respond_to?(:rewind)
+    end
+
+    def build_request(params_hash, request_payload)
+      params_hash = params_hash.to_h.transform_values(&:to_s)
+      ::App::Controllers::Request.new(params: params_hash, json: request_payload)
+    end
+
+    public :require_json_object, :build_request, :normalize_payload
   end
 end

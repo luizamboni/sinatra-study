@@ -14,7 +14,7 @@ class ApiTest < Minitest::Test
   end
 
   def setup
-    App::Api::SinatraSetup.configure(app)
+    @app_wrapper = App::App::App.new(app)
   end
 
   def json(body)
