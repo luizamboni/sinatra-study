@@ -60,7 +60,7 @@ class SchemaServiceTest < Minitest::Test
       ]
     )
 
-    error = assert_raises(ArgumentError) do
+    error = assert_raises(App::Errors::ValidationError) do
       service.define_schema(
         name: :user,
         fields: [
@@ -69,6 +69,7 @@ class SchemaServiceTest < Minitest::Test
       )
     end
 
-    assert_match(/Schema already defined: user/, error.message)
+    assert_equal "Invalid request payload", error.message
+    assert_equal ["Schema already defined: user"], error.details
   end
 end

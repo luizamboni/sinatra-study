@@ -7,6 +7,8 @@ require_relative "../app"
 require_relative "../app/dependency_builder"
 require_relative "../app/app"
 require_relative "open_api"
+require_relative "error_sanitizer"
+require_relative "../errors/validation_error"
 require_relative "../controllers/schemas/controller"
 require_relative "../controllers/entities/controller"
 
@@ -15,10 +17,11 @@ module App::Api
 
    include App::Controllers
 
-    V1 = App::App::App.new(self)
+    V1 = App::App::App.new(self, error_sanitizer: ->(error) { ErrorSanitizer.sanitize(error) })
     V1.configure_defaults
     V1.define_error_fallback(ArgumentError, status: 422, response_class: Shared::ErrorResponse)
     V1.define_error_fallback(Dry::Struct::Error, status: 422, response_class: Shared::ErrorResponse)
+    V1.define_error_fallback(App::Errors::ValidationError, status: 422, response_class: Shared::ErrorResponse)
     V1.define_error_fallback(StandardError, status: 500, response_class: Shared::ErrorResponse)
 
     V1.get "/schemas", nil, { 200 => Schemas::SchemasResponse } do |request|
@@ -52,11 +55,13 @@ module App::Api
     V2 = App::App::App.new(
       self,
       version: "v2",
-      docs_proc: ->(spec_url) { App::Api::OpenApi.ui_html(spec_url: spec_url) }
+      docs_proc: ->(spec_url) { App::Api::OpenApi.ui_html(spec_url: spec_url) },
+      error_sanitizer: ->(error) { ErrorSanitizer.sanitize(error) }
     )
     V2.configure_defaults
     V2.define_error_fallback(ArgumentError, status: 422, response_class: Shared::ErrorResponse)
     V2.define_error_fallback(Dry::Struct::Error, status: 422, response_class: Shared::ErrorResponse)
+    V2.define_error_fallback(App::Errors::ValidationError, status: 422, response_class: Shared::ErrorResponse)
     V2.define_error_fallback(StandardError, status: 500, response_class: Shared::ErrorResponse)
 
     V2.get("/v2/schemas", nil, { 200 => Schemas::SchemasResponse }) do |request|

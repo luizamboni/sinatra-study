@@ -5,6 +5,7 @@ require_relative "../app"
 require_relative "schema_service"
 require_relative "entity_service"
 require_relative "../domain/attribute"
+require_relative "../errors/validation_error"
 
 module App::Services
   class DynamicEntityService
@@ -35,7 +36,12 @@ module App::Services
     sig { params(schema_name: T.any(String, Symbol), attributes: T::Array[App::Domain::Attribute]).returns(App::Domain::Entity) }
     def create_entity(schema_name:, attributes:)
       schema = @schema_service.find_schema(name: schema_name)
-      raise ArgumentError, "Schema not found: #{schema_name}" unless schema
+      unless schema
+        raise App::Errors::ValidationError.new(
+          "Invalid request payload",
+          details: ["Schema not found: #{schema_name}"]
+        )
+      end
 
       normalized_attributes = normalize_attributes(attributes: attributes)
       attributes_by_name = attributes_map(attributes: normalized_attributes)
@@ -60,7 +66,10 @@ module App::Services
     sig { params(attributes: T::Array[App::Domain::Attribute]).returns(T::Array[App::Domain::Attribute]) }
     def normalize_attributes(attributes:)
       unless attributes.all? { |attribute| attribute.is_a?(App::Domain::Attribute) }
-        raise ArgumentError, "Each attribute must be an App::Domain::Attribute"
+        raise App::Errors::ValidationError.new(
+          "Invalid request payload",
+          details: ["Each attribute must be an App::Domain::Attribute"]
+        )
       end
 
       attributes.each_with_object([]) do |attribute, acc|
@@ -79,19 +88,28 @@ module App::Services
     def validate_attributes!(schema:, attributes:)
       schema.fields.each do |field, expected|
         unless attributes.key?(field)
-          raise ArgumentError, "Missing required field: #{field}"
+          raise App::Errors::ValidationError.new(
+            "Invalid request payload",
+            details: ["Missing required field: #{field}"]
+          )
         end
 
         value = attributes[field]
         unless matches_type?(expected: expected, value: value)
-          raise ArgumentError, "Field #{field} expected #{expected.inspect}, got #{value.class}"
+          raise App::Errors::ValidationError.new(
+            "Invalid request payload",
+            details: ["Field #{field} expected #{expected.inspect}, got #{value.class}"]
+          )
         end
       end
 
       extra = attributes.keys - schema.fields.keys
       return if extra.empty?
 
-      raise ArgumentError, "Unknown fields: #{extra.join(', ')}"
+      raise App::Errors::ValidationError.new(
+        "Invalid request payload",
+        details: ["Unknown fields: #{extra.join(', ')}"]
+      )
     end
 
     sig { params(expected: App::Domain::Schema::FieldType, value: T.untyped).returns(T::Boolean) }

@@ -63,9 +63,5 @@ class App::Controllers::SchemasController
       fields: schema.fields.map { |name, type| Schemas::FieldPayload.new(name: name.to_s, type: type.to_s) }
     )
     Response.new(status: 201, body: response_payload)
-  rescue ArgumentError => error
-    Response.new(status: 422, body: Controllers::Shared::ErrorResponse.new(error: error.message))
-  rescue StandardError => error
-    Response.new(status: 500, body: Controllers::Shared::ErrorResponse.new(error: error.message))
   end
 end

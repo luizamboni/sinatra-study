@@ -11,13 +11,21 @@ require_relative "../controllers/shared/error_response"
 
 module App::App
   class App
-    def initialize(sinatra_app, name: nil, version: nil, openapi_proc: nil, docs_proc: nil)
+    def initialize(
+      sinatra_app,
+      name: nil,
+      version: nil,
+      openapi_proc: nil,
+      docs_proc: nil,
+      error_sanitizer: nil
+    )
       @sinatra_app = sinatra_app
       @contracts = []
       @name = name
       @version = version
       @openapi_proc = openapi_proc
       @docs_proc = docs_proc
+      @error_sanitizer = error_sanitizer
       @error_fallbacks = {}
       install_helpers
     end
@@ -448,47 +456,11 @@ module App::App
     end
 
     def sanitize_error_details(error)
-      if defined?(Dry::Struct::Error) && error.is_a?(Dry::Struct::Error)
-        sanitize_dry_struct_error(error.message)
+      if @error_sanitizer
+        Array(@error_sanitizer.call(error)).map(&:to_s)
       else
         [error.message]
       end
-    end
-
-    def sanitize_dry_struct_error(message)
-      details = []
-
-      if message.include?("FieldPayload")
-        details << "fields[].name is required" if message.match?(/:name is missing/)
-        details << "fields[].type is required" if message.match?(/:type is missing/)
-      end
-
-      has_attribute_payload = message.include?("AttributePayload")
-      if has_attribute_payload
-        details << "attributes[].name is required" if message.match?(/:name is missing/)
-        details << "attributes[].value is required" if message.match?(/:value is missing/)
-      end
-
-      if message.include?("CreateSchemaRequest") && !message.include?("FieldPayload")
-        details << "name is required" if message.match?(/:name is missing/)
-        details << "fields is invalid" if message.match?(/invalid type for :fields/)
-      end
-
-      if message.include?("CreateEntityRequest") && !has_attribute_payload
-        details << "attributes is invalid" if message.match?(/invalid type for :attributes/)
-      end
-
-      return details.map(&:strip).uniq unless details.empty?
-
-      message.scan(/invalid type for :([a-zA-Z0-9_]+)/).each do |match|
-        details << "#{match.first} is invalid"
-      end
-
-      message.scan(/:([a-zA-Z0-9_]+) is missing/).each do |match|
-        details << "#{match.first} is required"
-      end
-
-      details.map(&:strip).uniq
     end
 
     public :require_json_object, :build_request, :normalize_payload

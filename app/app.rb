@@ -9,6 +9,9 @@ end
 module App::Controllers
 end
 
+module App::Errors
+end
+
 module App::Domain
 end
 

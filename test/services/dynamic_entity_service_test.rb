@@ -55,7 +55,7 @@ class DynamicEntityServiceTest < Minitest::Test
       ]
     )
 
-    error = assert_raises(ArgumentError) do
+    error = assert_raises(App::Errors::ValidationError) do
       service.create_entity(
         schema_name: :user,
         attributes: [
@@ -64,7 +64,8 @@ class DynamicEntityServiceTest < Minitest::Test
       )
     end
 
-    assert_match(/Missing required field: age/, error.message)
+    assert_equal "Invalid request payload", error.message
+    assert_equal ["Missing required field: age"], error.details
   end
 
   sig { void }
@@ -76,7 +77,7 @@ class DynamicEntityServiceTest < Minitest::Test
       ]
     )
 
-    error = assert_raises(ArgumentError) do
+    error = assert_raises(App::Errors::ValidationError) do
       service.create_entity(
         schema_name: :user,
         attributes: [
@@ -86,7 +87,8 @@ class DynamicEntityServiceTest < Minitest::Test
       )
     end
 
-    assert_match(/Unknown fields: extra/, error.message)
+    assert_equal "Invalid request payload", error.message
+    assert_equal ["Unknown fields: extra"], error.details
   end
 
   sig { void }
@@ -98,7 +100,7 @@ class DynamicEntityServiceTest < Minitest::Test
       ]
     )
 
-    error = assert_raises(ArgumentError) do
+    error = assert_raises(App::Errors::ValidationError) do
       service.create_entity(
         schema_name: :user,
         attributes: [
@@ -107,7 +109,8 @@ class DynamicEntityServiceTest < Minitest::Test
       )
     end
 
-    assert_match(/Field age expected/, error.message)
+    assert_equal "Invalid request payload", error.message
+    assert_equal ["Field age expected :integer, got String"], error.details
   end
 
   sig { void }
@@ -119,11 +122,12 @@ class DynamicEntityServiceTest < Minitest::Test
       ]
     )
 
-    error = assert_raises(ArgumentError) do
+    error = assert_raises(App::Errors::ValidationError) do
       service.create_entity(schema_name: :user, attributes: [T.unsafe({})])
     end
 
-    assert_match(/Each attribute must be an App::Domain::Attribute/, error.message)
+    assert_equal "Invalid request payload", error.message
+    assert_equal ["Each attribute must be an App::Domain::Attribute"], error.details
   end
 
   sig { void }
@@ -135,7 +139,7 @@ class DynamicEntityServiceTest < Minitest::Test
       ]
     )
 
-    error = assert_raises(ArgumentError) do
+    error = assert_raises(App::Errors::ValidationError) do
       service.create_entity(
         schema_name: :user,
         attributes: [
@@ -144,7 +148,8 @@ class DynamicEntityServiceTest < Minitest::Test
       )
     end
 
-    assert_match(/Field name expected/, error.message)
+    assert_equal "Invalid request payload", error.message
+    assert_equal ["Field name expected :string, got NilClass"], error.details
   end
 
   sig { void }
@@ -156,7 +161,7 @@ class DynamicEntityServiceTest < Minitest::Test
       ]
     )
 
-    error = assert_raises(ArgumentError) do
+    error = assert_raises(App::Errors::ValidationError) do
       service.define_schema(
         name: :user,
         fields: [
@@ -165,6 +170,7 @@ class DynamicEntityServiceTest < Minitest::Test
       )
     end
 
-    assert_match(/Schema already defined: user/, error.message)
+    assert_equal "Invalid request payload", error.message
+    assert_equal ["Schema already defined: user"], error.details
   end
 end
