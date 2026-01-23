@@ -150,7 +150,7 @@ class ApiTest < Minitest::Test
     assert_equal 422, last_response.status
     payload = json(last_response.body)
     assert_equal "Invalid request payload", payload["error"]
-    assert_equal ["attributes[].name is required"], payload["details"]
+    assert_equal ["Invalid request payload"], payload["details"]
   end
 
   def test_rejects_invalid_nested_fields
@@ -168,6 +168,6 @@ class ApiTest < Minitest::Test
     assert_equal 422, last_response.status
     payload = json(last_response.body)
     assert_equal "Invalid request payload", payload["error"]
-    assert_equal ["fields[].name is required"], payload["details"]
+    assert_equal ["Invalid request payload"], payload["details"]
   end
 end

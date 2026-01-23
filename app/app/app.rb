@@ -8,6 +8,7 @@ require_relative "../api/open_api"
 require_relative "../controllers/shared/request"
 require_relative "../controllers/shared/response"
 require_relative "../controllers/shared/error_response"
+require_relative "../errors/validation_error"
 
 module App::App
   class App
@@ -16,8 +17,7 @@ module App::App
       name: nil,
       version: nil,
       openapi_proc: nil,
-      docs_proc: nil,
-      error_sanitizer: nil
+      docs_proc: nil
     )
       @sinatra_app = sinatra_app
       @contracts = []
@@ -25,7 +25,6 @@ module App::App
       @version = version
       @openapi_proc = openapi_proc
       @docs_proc = docs_proc
-      @error_sanitizer = error_sanitizer
       @error_fallbacks = {}
       install_helpers
     end
@@ -456,10 +455,10 @@ module App::App
     end
 
     def sanitize_error_details(error)
-      if @error_sanitizer
-        Array(@error_sanitizer.call(error)).map(&:to_s)
+      if error.respond_to?(:details)
+        Array(error.details).map(&:to_s)
       else
-        [error.message]
+        []
       end
     end
 
