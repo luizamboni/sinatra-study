@@ -1,0 +1,37 @@
+services:
+  app:
+    build: .
+    ports:
+      - "4567:4567"
+    volumes:
+      - .:/app
+    environment:
+      - RACK_ENV=development
+      - APP_REPOSITORY=spanner
+      - SPANNER_PROJECT_ID=local-project
+      - SPANNER_INSTANCE_ID=local-instance
+      - SPANNER_DATABASE_ID=local-db
+      - SPANNER_EMULATOR_HOST=spanner:9010
+    command: bundle exec rackup -o 0.0.0.0 -p 4567
+    depends_on:
+      - spanner
+      - spanner-init
+
+  spanner:
+    image: gcr.io/cloud-spanner-emulator/emulator
+    ports:
+      - "9010:9010"
+      - "9020:9020"
+
+  spanner-init:
+    image: google/cloud-sdk:slim
+    environment:
+      - SPANNER_PROJECT_ID=local-project
+      - SPANNER_INSTANCE_ID=local-instance
+      - SPANNER_DATABASE_ID=local-db
+      - SPANNER_EMULATOR_REST_HOST=spanner:9020
+    volumes:
+      - ./scripts:/scripts:ro
+    entrypoint: ["/bin/bash", "/scripts/spanner_emulator_init.sh"]
+    depends_on:
+      - spanner

@@ -1,0 +1,10 @@
+.git
+.bundle
+.ruby-lsp
+.vscode
+log
+node_modules
+vendor
+/tmp
+/tmp/*
+/db/*.sqlite3

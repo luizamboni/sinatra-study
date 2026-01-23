@@ -4,6 +4,7 @@ require "sorbet-runtime"
 require_relative "../app"
 require_relative "../infrastructure/repository"
 require_relative "../infrastructure/sqlite_repository"
+require_relative "../infrastructure/spanner_repository"
 require_relative "../domain/schema"
 require_relative "../domain/entity"
 require_relative "../services/schema_service"
@@ -18,8 +19,17 @@ module App::App::DependencyBuilder
   RepoClass = T.type_alias do
     T.any(
       T.class_of(App::Infrastructure::Repository),
-      T.class_of(App::Infrastructure::SqliteRepository)
+      T.class_of(App::Infrastructure::SqliteRepository),
+      T.class_of(App::Infrastructure::SpannerRepository)
     )
+  end
+
+  SpannerConfig = T.type_alias do
+    {
+      project_id: String,
+      instance_id: String,
+      database_id: String
+    }
   end
 
   class Container
@@ -29,17 +39,22 @@ module App::App::DependencyBuilder
     class << self
       extend T::Sig
 
-      sig { params(db_path: String, repository_class: RepoClass).returns(Container) }
-      def instance(db_path:, repository_class:)
-        @instance ||= new(db_path: db_path, repository_class: repository_class)
+      sig { params(db_path: String, spanner_config: SpannerConfig, repository_class: RepoClass).returns(Container) }
+      def instance(db_path:, spanner_config:, repository_class:)
+        @instance ||= new(
+          db_path: db_path,
+          spanner_config: spanner_config,
+          repository_class: repository_class
+        )
       end
     end
 
     private_class_method :new
 
-    sig { params(db_path: String, repository_class: RepoClass).void }
-    def initialize(db_path:, repository_class: App::Infrastructure::SqliteRepository)
+    sig { params(db_path: String, spanner_config: SpannerConfig, repository_class: RepoClass).void }
+    def initialize(db_path:, spanner_config:, repository_class: App::Infrastructure::SqliteRepository)
       @db_path = T.let(db_path, String)
+      @spanner_config = T.let(spanner_config, SpannerConfig)
       @repository_class = T.let(repository_class, RepoClass)
     end
 
@@ -88,6 +103,14 @@ module App::App::DependencyBuilder
       if @repository_class == App::Infrastructure::Repository
         repo_class = T.cast(@repository_class, T.class_of(App::Infrastructure::Repository))
         repo_class.new(type: type)
+      elsif @repository_class == App::Infrastructure::SpannerRepository
+        repo_class = T.cast(@repository_class, T.class_of(App::Infrastructure::SpannerRepository))
+        repo_class.new(
+          type: type,
+          project_id: @spanner_config[:project_id],
+          instance_id: @spanner_config[:instance_id],
+          database_id: @spanner_config[:database_id]
+        )
       else
         repo_class = T.cast(@repository_class, T.class_of(App::Infrastructure::SqliteRepository))
         repo_class.new(type: type, db_path: @db_path)
@@ -95,14 +118,34 @@ module App::App::DependencyBuilder
     end
   end
 
-  sig { params(repository_class: RepoClass).returns(Container) }
-  def self.build(repository_class: App::Infrastructure::SqliteRepository)
+  sig { params(repository_class: T.nilable(RepoClass)).returns(Container) }
+  def self.build(repository_class: nil)
+    repo_class = repository_class || default_repository_class
     db_path = if ENV["RACK_ENV"] == "test"
       ":memory:"
     else
       "db/app.sqlite3"
     end
-    
-    Container.instance(db_path: db_path, repository_class: repository_class)
+
+    spanner_config = {
+      project_id: ENV.fetch("SPANNER_PROJECT_ID", "local-project"),
+      instance_id: ENV.fetch("SPANNER_INSTANCE_ID", "local-instance"),
+      database_id: ENV.fetch("SPANNER_DATABASE_ID", "local-db")
+    }
+
+    Container.instance(
+      db_path: db_path,
+      repository_class: repo_class,
+      spanner_config: spanner_config
+    )
+  end
+
+  sig { returns(RepoClass) }
+  def self.default_repository_class
+    return App::Infrastructure::Repository if ENV["APP_REPOSITORY"] == "memory"
+    return App::Infrastructure::SpannerRepository if ENV["APP_REPOSITORY"] == "spanner"
+    return App::Infrastructure::SpannerRepository if ENV["SPANNER_EMULATOR_HOST"]
+
+    App::Infrastructure::SqliteRepository
   end
 end
