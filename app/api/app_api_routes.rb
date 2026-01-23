@@ -4,6 +4,7 @@ require "sinatra/base"
 
 require_relative "../app"
 require_relative "../app/dependency_builder"
+require_relative "../app/app"
 require_relative "helpers"
 require_relative "sinatra_setup"
 require_relative "../controllers/schemas/controller"
@@ -79,6 +80,46 @@ module App::Api
 
       content_type :html
       App::Api::OpenApi.ui_html(spec_url: "/swagger/#{schema_name}.json")
+    end
+
+    V2 = App::App::App.new(
+      self,
+      version: "v2",
+      openapi_proc: -> { App::Api::OpenApi.spec },
+      docs_proc: ->(spec_url) { App::Api::OpenApi.ui_html(spec_url: spec_url) }
+    )
+
+    get V2.swagger_path do
+      spec = V2.swagger_spec
+      unless spec
+        return json_response({ error: "Swagger spec not configured" }, 500)
+      end
+      json_response(spec)
+    end
+
+    get V2.docs_path do
+      html = V2.docs_html
+      unless html
+        return json_response({ error: "Swagger UI not configured" }, 500)
+      end
+      content_type :html
+      html
+    end
+
+    V2.get "/v2/schemas", nil, [App::Controllers::Schemas::SchemasResponse] do |request|
+      schemas_controller.index(request: request)
+    end
+
+    V2.post "/v2/schemas", App::Controllers::Schemas::CreateSchemaRequest, [App::Controllers::Schemas::SchemaPayload] do |request, _payload|
+      schemas_controller.create(request: request)
+    end
+
+    V2.get "/v2/entities/:schema", nil, [App::Controllers::Entities::EntitiesResponse] do |request|
+      entities_controller.index(request: request)
+    end
+
+    V2.post "/v2/entities/:schema", App::Controllers::Entities::CreateEntityRequest, [App::Controllers::Entities::EntityPayload] do |request, _payload|
+      entities_controller.create(request: request)
     end
 
 

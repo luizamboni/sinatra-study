@@ -87,4 +87,69 @@ entities.each do |entity|
   post_json(base_url, "/entities/#{entity[:schema]}", attributes: entity[:attributes])
 end
 
+v2_user_schema = "#{user_schema}_v2"
+v2_post_schema = "#{post_schema}_v2"
+
+v2_schemas = [
+  {
+    name: v2_user_schema,
+    fields: [
+      { name: :name, type: :string },
+      { name: :age, type: :integer },
+      { name: :admin, type: :boolean }
+    ]
+  },
+  {
+    name: v2_post_schema,
+    fields: [
+      { name: :title, type: :string },
+      { name: :body, type: :string },
+      { name: :published, type: :boolean }
+    ]
+  }
+]
+
+v2_entities = [
+  {
+    schema: v2_user_schema,
+    attributes: [
+      { name: :name, value: "Ana" },
+      { name: :age, value: 30 },
+      { name: :admin, value: false }
+    ]
+  },
+  {
+    schema: v2_user_schema,
+    attributes: [
+      { name: :name, value: "Rui" },
+      { name: :age, value: 42 },
+      { name: :admin, value: true }
+    ]
+  },
+  {
+    schema: v2_post_schema,
+    attributes: [
+      { name: :title, value: "Hello" },
+      { name: :body, value: "First post" },
+      { name: :published, value: true }
+    ]
+  },
+  {
+    schema: v2_post_schema,
+    attributes: [
+      { name: :title, value: "Draft" },
+      { name: :body, value: "Work in progress" },
+      { name: :published, value: false }
+    ]
+  }
+]
+
+v2_schemas.each do |schema|
+  post_json(base_url, "/v2/schemas", schema)
+end
+
+v2_entities.each do |entity|
+  post_json(base_url, "/v2/entities/#{entity[:schema]}", attributes: entity[:attributes])
+end
+
 puts "Seeded schemas and entities via #{base_url}"
