@@ -1,16 +1,24 @@
 # typed: false
 
 require "json"
+require "logger"
 require "sinatra/base"
 require_relative "../app"
 require_relative "../api/open_api"
 require_relative "../controllers/shared/request"
 require_relative "../controllers/shared/response"
 require_relative "../controllers/shared/error_response"
+require_relative "../errors/validation_error"
 
 module App::App
   class App
-    def initialize(sinatra_app, name: nil, version: nil, openapi_proc: nil, docs_proc: nil)
+    def initialize(
+      sinatra_app,
+      name: nil,
+      version: nil,
+      openapi_proc: nil,
+      docs_proc: nil
+    )
       @sinatra_app = sinatra_app
       @contracts = []
       @name = name
@@ -23,24 +31,24 @@ module App::App
 
     attr_reader :sinatra_app
 
-    def get(path, request_class = nil, responses = {}, &block)
-      define_route(:get, path, request_class, responses, &block)
+    def get(path, request_class = nil, responses = {}, options = {}, &block)
+      define_route(:get, path, request_class, responses, options, &block)
     end
 
-    def post(path, request_class = nil, responses = {}, &block)
-      define_route(:post, path, request_class, responses, &block)
+    def post(path, request_class = nil, responses = {}, options = {}, &block)
+      define_route(:post, path, request_class, responses, options, &block)
     end
 
-    def put(path, request_class = nil, responses = {}, &block)
-      define_route(:put, path, request_class, responses, &block)
+    def put(path, request_class = nil, responses = {}, options = {}, &block)
+      define_route(:put, path, request_class, responses, options, &block)
     end
 
-    def patch(path, request_class = nil, responses = {}, &block)
-      define_route(:patch, path, request_class, responses, &block)
+    def patch(path, request_class = nil, responses = {}, options = {}, &block)
+      define_route(:patch, path, request_class, responses, options, &block)
     end
 
-    def delete(path, request_class = nil, responses = {}, &block)
-      define_route(:delete, path, request_class, responses, &block)
+    def delete(path, request_class = nil, responses = {}, options = {}, &block)
+      define_route(:delete, path, request_class, responses, options, &block)
     end
 
     def contracts
@@ -86,6 +94,7 @@ module App::App
         app.set :show_exceptions, false
         app.set :protection, false
         app.set :allow_hosts, ["localhost", "127.0.0.1", "[::1]"]
+        app.set :logger, build_logger
       end
     end
 
@@ -135,6 +144,31 @@ module App::App
 
         def error_fallback_for(error)
           app_wrapper&.error_fallback_for(error)
+        end
+
+        def error_response_body(error, fallback)
+          wrapper = app_wrapper
+          wrapper ? wrapper.send(:error_response_body, error, fallback) : nil
+        end
+
+        def log_info(message)
+          wrapper = app_wrapper
+          wrapper&.send(:log_info, message)
+        end
+
+        def log_debug(message)
+          wrapper = app_wrapper
+          wrapper&.send(:log_debug, message)
+        end
+
+        def log_error(message)
+          wrapper = app_wrapper
+          wrapper&.send(:log_error, message)
+        end
+
+        def normalize_error_response(error_response, status)
+          wrapper = app_wrapper
+          wrapper ? wrapper.send(:normalize_error_response, error_response, status) : error_response
         end
       end
     end
@@ -261,24 +295,30 @@ module App::App
       end
     end
 
-    def define_route(verb, path, request_class, responses, &block)
-      @contracts << {
-        verb: verb,
-        path: path,
-        request: request_class,
-        responses: responses
-      }
+    def define_route(verb, path, request_class, responses, options = {}, &block)
+      include_in_contract = options.fetch(:include_in_contract, true)
+      if include_in_contract
+        @contracts << {
+          verb: verb,
+          path: path,
+          request: request_class,
+          responses: responses
+        }
+      end
       normalized_responses = normalize_responses(responses || {})
 
       @sinatra_app.send(verb, path) do
         response_status = 200
         response_body = nil
+        response_content_type = nil
 
         begin
+          log_info("#{verb.to_s.upcase} #{request.path_info}")
           request_payload = request_class ? require_json_object(request) : nil
           if request_class && request_class.respond_to?(:from_hash)
             request_payload = request_class.from_hash(request_payload)
           end
+          log_debug("request_payload=#{request_payload.inspect}") if request_class
 
           request_obj = build_request(params, request_payload)
 
@@ -297,6 +337,11 @@ module App::App
           if result.is_a?(::App::Controllers::Shared::Response)
             response_status = result.status
             response_body = result.body
+            response_content_type = result.content_type
+          end
+
+          if response_body.is_a?(::App::Controllers::Shared::ErrorResponse) && response_status >= 400
+            response_body = normalize_error_response(response_body, response_status)
           end
 
           if normalized_responses && !normalized_responses.empty?
@@ -305,19 +350,26 @@ module App::App
               raise ArgumentError, "Expected response to be #{expected_class&.name}, got #{response_body.class}"
             end
           end
+          log_info("status=#{response_status}")
         rescue StandardError => error
+          log_error("#{error.class}: #{error.message}")
           fallback = error_fallback_for(error)
           if fallback
             response_status = fallback[:status]
-            response_body = fallback[:response_class].new(error: error.message)
+            response_body = error_response_body(error, fallback)
           else
             raise error
           end
         end
 
-        content_type :json
         status response_status
-        JSON.generate(normalize_payload(response_body))
+        if response_content_type && response_content_type.include?("html")
+          content_type :html
+          response_body.to_s
+        else
+          content_type :json
+          JSON.generate(normalize_payload(response_body))
+        end
       end
     end
 
@@ -355,6 +407,71 @@ module App::App
     def build_request(params_hash, request_payload)
       params_hash = params_hash.to_h.transform_values(&:to_s)
       ::App::Controllers::Shared::Request.new(params: params_hash, json: request_payload)
+    end
+
+    def build_logger
+      logger = Logger.new($stdout)
+      level = ENV.fetch("LOG_LEVEL", "INFO").upcase
+      logger.level = case level
+      when "DEBUG" then Logger::DEBUG
+      when "WARN" then Logger::WARN
+      when "ERROR" then Logger::ERROR
+      when "FATAL" then Logger::FATAL
+      else Logger::INFO
+      end
+      logger
+    end
+
+    def log_info(message)
+      @sinatra_app.settings.logger&.info(message)
+    end
+
+    def log_debug(message)
+      @sinatra_app.settings.logger&.debug(message)
+    end
+
+    def log_error(message)
+      @sinatra_app.settings.logger&.error(message)
+    end
+
+    def error_response_body(error, fallback)
+      status = fallback[:status]
+      response_class = fallback[:response_class]
+
+      if status >= 500
+        response_class.new(error: "Internal server error")
+      else
+        details = sanitize_error_details(error)
+        details = ["Invalid request payload"] if details.empty?
+        response_class.new(error: "Invalid request payload", details: details)
+      end
+    end
+
+    def normalize_error_response(error_response, status)
+      response_class = error_response.class
+
+      if status >= 500
+        response_class.new(error: "Internal server error")
+      else
+        details = []
+        details.concat(Array(error_response.details)) if error_response.details
+        if error_response.error && error_response.error != "Invalid request payload"
+          details << error_response.error
+        end
+        details = details.map(&:to_s).map(&:strip).reject(&:empty?).uniq
+        details = ["Invalid request payload"] if details.empty?
+        response_class.new(error: "Invalid request payload", details: details)
+      end
+    end
+
+    def sanitize_error_details(error)
+      if error.respond_to?(:details)
+        Array(error.details).map(&:to_s)
+      elsif defined?(Dry::Struct::Error) && error.is_a?(Dry::Struct::Error)
+        [error.message.to_s]
+      else
+        []
+      end
     end
 
     public :require_json_object, :build_request, :normalize_payload

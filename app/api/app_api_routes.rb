@@ -1,11 +1,13 @@
 # typed: false
 
 require "sinatra/base"
+require "dry-struct"
 
 require_relative "../app"
 require_relative "../app/dependency_builder"
 require_relative "../app/app"
 require_relative "open_api"
+require_relative "../errors/validation_error"
 require_relative "../controllers/schemas/controller"
 require_relative "../controllers/entities/controller"
 
@@ -17,6 +19,8 @@ module App::Api
     V1 = App::App::App.new(self)
     V1.configure_defaults
     V1.define_error_fallback(ArgumentError, status: 422, response_class: Shared::ErrorResponse)
+    V1.define_error_fallback(Dry::Struct::Error, status: 422, response_class: Shared::ErrorResponse)
+    V1.define_error_fallback(App::Errors::ValidationError, status: 422, response_class: Shared::ErrorResponse)
     V1.define_error_fallback(StandardError, status: 500, response_class: Shared::ErrorResponse)
 
     V1.get "/schemas", nil, { 200 => Schemas::SchemasResponse } do |request|
@@ -36,12 +40,7 @@ module App::Api
       entities_controller.index(request: request)
     end
 
-    V1.post "/entities/:schema",
-            Entities::CreateEntityRequest,
-            {
-              200 => Entities::EntityPayload,
-              [422, 500] => Shared::ErrorResponse
-            } do |request, _payload|
+    V1.post "/entities/:schema", Entities::CreateEntityRequest, { 200 => Entities::EntityPayload, [422, 500] => Shared::ErrorResponse} do |request, _payload|
       entities_controller.create(request: request)
     end
     V1.define_swagger_routes
@@ -54,6 +53,8 @@ module App::Api
     )
     V2.configure_defaults
     V2.define_error_fallback(ArgumentError, status: 422, response_class: Shared::ErrorResponse)
+    V2.define_error_fallback(Dry::Struct::Error, status: 422, response_class: Shared::ErrorResponse)
+    V2.define_error_fallback(App::Errors::ValidationError, status: 422, response_class: Shared::ErrorResponse)
     V2.define_error_fallback(StandardError, status: 500, response_class: Shared::ErrorResponse)
 
     V2.get("/v2/schemas", nil, { 200 => Schemas::SchemasResponse }) do |request|
@@ -73,6 +74,22 @@ module App::Api
     end
     V2.define_swagger_routes
 
+    V1.get "/:schema/swagger.json", nil, { 200 => Object, 404 => Shared::ErrorResponse }, { include_in_contract: false } do |request|
+      schemas_controller.swagger_json(request: request, prefix: nil)
+    end
+
+    V1.get "/:schema/docs", nil, { 200 => Object, 404 => Shared::ErrorResponse }, { include_in_contract: false } do |request|
+      schemas_controller.swagger_docs(request: request, prefix: nil)
+    end
+
+    V2.get "/v2/:schema/swagger.json", nil, { 200 => Object, 404 => Shared::ErrorResponse }, { include_in_contract: false } do |request|
+      schemas_controller.swagger_json(request: request, prefix: "/v2")
+    end
+
+    V2.get "/v2/:schema/docs", nil, { 200 => Object, 404 => Shared::ErrorResponse }, { include_in_contract: false } do |request|
+      schemas_controller.swagger_docs(request: request, prefix: "/v2")
+    end
+
 
     private
 
@@ -91,5 +108,7 @@ module App::Api
     def entities_controller
       @entities_controller ||= container.entities_controller
     end
+
+
   end
 end

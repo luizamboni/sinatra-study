@@ -421,6 +421,10 @@ module App::Api
         name = component_name(raw)
         schemas[name] ||= struct_schema(raw, schemas)
         { "$ref" => "#/components/schemas/#{name}" }
+      elsif dry_struct_class?(raw)
+        name = component_name(raw)
+        schemas[name] ||= dry_struct_schema(raw, schemas)
+        { "$ref" => "#/components/schemas/#{name}" }
       elsif raw == String || raw == Symbol
         { "type" => "string" }
       elsif raw == Integer
@@ -449,6 +453,10 @@ module App::Api
         name = component_name(schema_ref)
         schemas[name] ||= struct_schema(schema_ref, schemas)
         { "$ref" => "#/components/schemas/#{name}" }
+      elsif dry_struct_class?(schema_ref)
+        name = component_name(schema_ref)
+        schemas[name] ||= dry_struct_schema(schema_ref, schemas)
+        { "$ref" => "#/components/schemas/#{name}" }
       elsif schema_ref.is_a?(String)
         { "$ref" => "#/components/schemas/#{schema_ref}" }
       else
@@ -466,7 +474,7 @@ module App::Api
       [nullable, non_nil.first]
     end
 
-    sig { params(klass: T.class_of(T::Struct)).returns(String) }
+    sig { params(klass: T.untyped).returns(String) }
     def self.component_name(klass)
       T.must(T.must(klass.name).split("::").last)
     end
@@ -491,6 +499,79 @@ module App::Api
       }
       schema["required"] = required unless required.empty?
       schema
+    end
+
+    sig do
+      params(klass: T.untyped, schemas: T::Hash[String, T::Hash[String, T.untyped]])
+        .returns(T::Hash[String, T.untyped])
+    end
+    def self.dry_struct_schema(klass, schemas)
+      schema = klass.schema
+      keys = schema.respond_to?(:keys) ? schema.keys : []
+      properties = {}
+      required = []
+
+      keys.each do |key|
+        name = key.respond_to?(:name) ? key.name : nil
+        type = key.respond_to?(:type) ? key.type : nil
+        next unless name
+
+        properties[name.to_s] = schema_for_dry_type(type, schemas) || {}
+        required << name.to_s unless dry_type_optional?(type)
+      end
+
+      schema = {
+        "type" => "object",
+        "properties" => properties
+      }
+      schema["required"] = required unless required.empty?
+      schema
+    end
+
+    sig { params(type: T.untyped).returns(T::Boolean) }
+    def self.dry_type_optional?(type)
+      return type.optional? if type.respond_to?(:optional?)
+      if type.respond_to?(:left) && type.respond_to?(:right)
+        return true if dry_type_nilable_side?(type.left) || dry_type_nilable_side?(type.right)
+      end
+      false
+    end
+
+    sig do
+      params(type: T.untyped, schemas: T::Hash[String, T::Hash[String, T.untyped]])
+        .returns(T.nilable(T::Hash[String, T.untyped]))
+    end
+    def self.schema_for_dry_type(type, schemas)
+      if type.respond_to?(:member)
+        { "type" => "array", "items" => schema_for_dry_type(type.member, schemas) }
+      elsif type.respond_to?(:left) && type.respond_to?(:right)
+        if dry_type_nilable_side?(type.left)
+          schema = schema_for_dry_type(type.right, schemas)
+          schema&.merge("nullable" => true)
+        elsif dry_type_nilable_side?(type.right)
+          schema = schema_for_dry_type(type.left, schemas)
+          schema&.merge("nullable" => true)
+        else
+          left = schema_for_dry_type(type.left, schemas)
+          right = schema_for_dry_type(type.right, schemas)
+          { "oneOf" => [left, right].compact }
+        end
+      elsif type.respond_to?(:primitive)
+        schema_for_raw(type.primitive, schemas)
+      else
+        nil
+      end
+    end
+
+    sig { params(type: T.untyped).returns(T::Boolean) }
+    def self.dry_type_nilable_side?(type)
+      return true if type.respond_to?(:primitive) && type.primitive == NilClass
+      false
+    end
+
+    sig { params(raw: T.untyped).returns(T::Boolean) }
+    def self.dry_struct_class?(raw)
+      !!(defined?(Dry::Struct) && raw.is_a?(Class) && raw <= Dry::Struct)
     end
     private_class_method :controllers
   end
