@@ -4,6 +4,7 @@ require "sorbet-runtime"
 require_relative "../app"
 require_relative "../errors/validation_error"
 require_relative "../infrastructure/repository"
+require_relative "../infrastructure/spanner_repository"
 require_relative "../domain/schema"
 require_relative "../domain/field"
 
@@ -15,7 +16,8 @@ module App::Services
       params(
         schema_repo: T.any(
           App::Infrastructure::Repository[App::Domain::Schema],
-          App::Infrastructure::SqliteRepository[App::Domain::Schema]
+          App::Infrastructure::SqliteRepository[App::Domain::Schema],
+          App::Infrastructure::SpannerRepository[App::Domain::Schema]
         )
       ).void
     end
@@ -24,7 +26,8 @@ module App::Services
         schema_repo,
         T.any(
           App::Infrastructure::Repository[App::Domain::Schema],
-          App::Infrastructure::SqliteRepository[App::Domain::Schema]
+          App::Infrastructure::SqliteRepository[App::Domain::Schema],
+          App::Infrastructure::SpannerRepository[App::Domain::Schema]
         )
       )
     end

@@ -3,6 +3,7 @@
 require "sorbet-runtime"
 require_relative "../app"
 require_relative "../infrastructure/repository"
+require_relative "../infrastructure/spanner_repository"
 require_relative "../domain/entity"
 
 module App::Services
@@ -13,7 +14,8 @@ module App::Services
       params(
         entity_repo: T.any(
           App::Infrastructure::Repository[App::Domain::Entity],
-          App::Infrastructure::SqliteRepository[App::Domain::Entity]
+          App::Infrastructure::SqliteRepository[App::Domain::Entity],
+          App::Infrastructure::SpannerRepository[App::Domain::Entity]
         )
       ).void
     end
@@ -22,7 +24,8 @@ module App::Services
         entity_repo,
         T.any(
           App::Infrastructure::Repository[App::Domain::Entity],
-          App::Infrastructure::SqliteRepository[App::Domain::Entity]
+          App::Infrastructure::SqliteRepository[App::Domain::Entity],
+          App::Infrastructure::SpannerRepository[App::Domain::Entity]
         )
       )
     end

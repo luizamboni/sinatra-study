@@ -14,8 +14,10 @@ services:
       - SPANNER_EMULATOR_HOST=spanner:9010
     command: bundle exec rackup -o 0.0.0.0 -p 4567
     depends_on:
-      - spanner
-      - spanner-init
+      spanner:
+        condition: service_started
+      spanner-init:
+        condition: service_completed_successfully
 
   spanner:
     image: gcr.io/cloud-spanner-emulator/emulator
@@ -29,6 +31,7 @@ services:
       - SPANNER_PROJECT_ID=local-project
       - SPANNER_INSTANCE_ID=local-instance
       - SPANNER_DATABASE_ID=local-db
+      - SPANNER_EMULATOR_HOST=spanner:9010
       - SPANNER_EMULATOR_REST_HOST=spanner:9020
     volumes:
       - ./scripts:/scripts:ro
