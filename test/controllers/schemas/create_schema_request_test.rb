@@ -31,29 +31,29 @@ class CreateSchemaRequestTest < Minitest::Test
 
   sig { void }
   def test_from_hash_rejects_missing_fields
-    error = assert_raises(ArgumentError) do
+    error = assert_raises(Dry::Struct::Error) do
       App::Controllers::Schemas::CreateSchemaRequest.from_hash({ "name" => "user" })
     end
 
-    assert_match(/fields must be a non-empty Array/, error.message)
+    assert_match(/fields/i, error.message)
   end
 
   sig { void }
   def test_from_hash_rejects_nil_fields
-    error = assert_raises(ArgumentError) do
+    error = assert_raises(Dry::Struct::Error) do
       App::Controllers::Schemas::CreateSchemaRequest.from_hash({ "name" => "user", "fields" => nil })
     end
 
-    assert_match(/fields must be a non-empty Array/, error.message)
+    assert_match(/fields/i, error.message)
   end
 
   sig { void }
   def test_from_hash_rejects_empty_fields_array
-    error = assert_raises(ArgumentError) do
+    error = assert_raises(Dry::Struct::Error) do
       App::Controllers::Schemas::CreateSchemaRequest.from_hash({ "name" => "user", "fields" => [] })
     end
 
-    assert_match(/fields must be a non-empty Array/, error.message)
+    assert_match(/fields/i, error.message)
   end
 
   sig { void }
@@ -65,11 +65,11 @@ class CreateSchemaRequestTest < Minitest::Test
       ]
     }
 
-    error = assert_raises(TypeError) do
+    error = assert_raises(Dry::Struct::Error) do
       App::Controllers::Schemas::CreateSchemaRequest.from_hash(payload)
     end
 
-    assert_match(/CreateSchemaRequest\.name/, error.message)
+    assert_match(/name/i, error.message)
   end
 
   sig { void }
@@ -81,10 +81,10 @@ class CreateSchemaRequestTest < Minitest::Test
       ]
     }
 
-    error = assert_raises(TypeError) do
+    error = assert_raises(Dry::Struct::Error) do
       App::Controllers::Schemas::CreateSchemaRequest.from_hash(payload)
     end
 
-    assert_match(/FieldPayload\.name/, error.message)
+    assert_match(/name/i, error.message)
   end
 end

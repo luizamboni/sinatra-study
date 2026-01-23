@@ -1,29 +1,24 @@
 # typed: true
 
-require "sorbet-runtime"
+require "dry-struct"
 require_relative "../../app"
+require_relative "../../types"
 require_relative "attribute_payload"
 
 module App::Controllers::Entities
-  class CreateEntityRequest < T::Struct
-    extend T::Sig
+  class CreateEntityRequest < Dry::Struct
+    transform_keys(&:to_sym)
 
-    const :attributes, T::Array[AttributePayload]
+    attribute :attributes, App::Types::Array.of(AttributePayload).constrained(min_size: 1)
 
-    sig { params(payload: T::Hash[String, T.untyped]).returns(CreateEntityRequest) }
+    alias_method :attributes_hash, :attributes
+
+    def attributes
+      self[:attributes]
+    end
+
     def self.from_hash(payload)
-      new(
-        attributes: begin
-          attrs = payload.fetch("attributes", nil).to_a
-          raise ArgumentError, "attributes must be a non-empty Array" if attrs.empty?
-          attrs.map do |attribute|
-            AttributePayload.new(
-              name: attribute.fetch("name", nil),
-              value: attribute.fetch("value", nil)
-            )
-          end
-        end
-      )
+      new(payload)
     end
   end
 end

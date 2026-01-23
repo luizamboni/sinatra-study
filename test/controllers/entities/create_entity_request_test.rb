@@ -29,29 +29,29 @@ class CreateEntityRequestTest < Minitest::Test
 
   sig { void }
   def test_from_hash_rejects_missing_attributes
-    error = assert_raises(ArgumentError) do
+    error = assert_raises(Dry::Struct::Error) do
       App::Controllers::Entities::CreateEntityRequest.from_hash({})
     end
 
-    assert_match(/attributes must be a non-empty Array/, error.message)
+    assert_match(/attributes/i, error.message)
   end
 
   sig { void }
   def test_from_hash_rejects_empty_attributes_array
-    error = assert_raises(ArgumentError) do
+    error = assert_raises(Dry::Struct::Error) do
       App::Controllers::Entities::CreateEntityRequest.from_hash({ "attributes" => [] })
     end
 
-    assert_match(/attributes must be a non-empty Array/, error.message)
+    assert_match(/attributes/i, error.message)
   end
 
   sig { void }
   def test_from_hash_rejects_nil_attributes
-    error = assert_raises(ArgumentError) do
+    error = assert_raises(Dry::Struct::Error) do
       App::Controllers::Entities::CreateEntityRequest.from_hash({ "attributes" => nil })
     end
 
-    assert_match(/attributes must be a non-empty Array/, error.message)
+    assert_match(/attributes/i, error.message)
   end
 
   sig { void }
@@ -62,10 +62,10 @@ class CreateEntityRequestTest < Minitest::Test
       ]
     }
 
-    error = assert_raises(TypeError) do
+    error = assert_raises(Dry::Struct::Error) do
       App::Controllers::Entities::CreateEntityRequest.from_hash(payload)
     end
 
-    assert_match(/AttributePayload\.name/, error.message)
+    assert_match(/name/i, error.message)
   end
 end

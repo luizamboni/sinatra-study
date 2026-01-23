@@ -10,6 +10,7 @@ gem "rerun"
 gem "rack-test"
 gem "sqlite3"
 gem "debug"
+gem "dry-struct"
 
 group :development do
   gem "bundler"
