@@ -74,19 +74,19 @@ module App::Api
     end
     V2.define_swagger_routes
 
-    V1.get "/:schema/swagger.json", nil, { 200 => Object, 404 => Shared::ErrorResponse } do |request|
+    V1.get "/:schema/swagger.json", nil, { 200 => Object, 404 => Shared::ErrorResponse }, { include_in_contract: false } do |request|
       schemas_controller.swagger_json(request: request, prefix: nil)
     end
 
-    V1.get "/:schema/docs", nil, { 200 => Object, 404 => Shared::ErrorResponse } do |request|
+    V1.get "/:schema/docs", nil, { 200 => Object, 404 => Shared::ErrorResponse }, { include_in_contract: false } do |request|
       schemas_controller.swagger_docs(request: request, prefix: nil)
     end
 
-    V2.get "/v2/:schema/swagger.json", nil, { 200 => Object, 404 => Shared::ErrorResponse } do |request|
+    V2.get "/v2/:schema/swagger.json", nil, { 200 => Object, 404 => Shared::ErrorResponse }, { include_in_contract: false } do |request|
       schemas_controller.swagger_json(request: request, prefix: "/v2")
     end
 
-    V2.get "/v2/:schema/docs", nil, { 200 => Object, 404 => Shared::ErrorResponse } do |request|
+    V2.get "/v2/:schema/docs", nil, { 200 => Object, 404 => Shared::ErrorResponse }, { include_in_contract: false } do |request|
       schemas_controller.swagger_docs(request: request, prefix: "/v2")
     end
 

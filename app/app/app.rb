@@ -31,24 +31,24 @@ module App::App
 
     attr_reader :sinatra_app
 
-    def get(path, request_class = nil, responses = {}, &block)
-      define_route(:get, path, request_class, responses, &block)
+    def get(path, request_class = nil, responses = {}, options = {}, &block)
+      define_route(:get, path, request_class, responses, options, &block)
     end
 
-    def post(path, request_class = nil, responses = {}, &block)
-      define_route(:post, path, request_class, responses, &block)
+    def post(path, request_class = nil, responses = {}, options = {}, &block)
+      define_route(:post, path, request_class, responses, options, &block)
     end
 
-    def put(path, request_class = nil, responses = {}, &block)
-      define_route(:put, path, request_class, responses, &block)
+    def put(path, request_class = nil, responses = {}, options = {}, &block)
+      define_route(:put, path, request_class, responses, options, &block)
     end
 
-    def patch(path, request_class = nil, responses = {}, &block)
-      define_route(:patch, path, request_class, responses, &block)
+    def patch(path, request_class = nil, responses = {}, options = {}, &block)
+      define_route(:patch, path, request_class, responses, options, &block)
     end
 
-    def delete(path, request_class = nil, responses = {}, &block)
-      define_route(:delete, path, request_class, responses, &block)
+    def delete(path, request_class = nil, responses = {}, options = {}, &block)
+      define_route(:delete, path, request_class, responses, options, &block)
     end
 
     def contracts
@@ -295,13 +295,16 @@ module App::App
       end
     end
 
-    def define_route(verb, path, request_class, responses, &block)
-      @contracts << {
-        verb: verb,
-        path: path,
-        request: request_class,
-        responses: responses
-      }
+    def define_route(verb, path, request_class, responses, options = {}, &block)
+      include_in_contract = options.fetch(:include_in_contract, true)
+      if include_in_contract
+        @contracts << {
+          verb: verb,
+          path: path,
+          request: request_class,
+          responses: responses
+        }
+      end
       normalized_responses = normalize_responses(responses || {})
 
       @sinatra_app.send(verb, path) do
