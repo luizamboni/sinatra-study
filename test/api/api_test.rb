@@ -2,6 +2,7 @@
 
 require "json"
 require "rack/test"
+require "securerandom"
 
 require_relative "../test_helper"
 require_relative "../../app/api/api"
@@ -31,8 +32,7 @@ class ApiTest < Minitest::Test
   end
 
   def test_creates_schema_and_entity
-    timestamp = Time.now.strftime("%Y%m%d%H%M%S")
-    schema_name = "user-#{timestamp}"
+    schema_name = "user-#{SecureRandom.hex(4)}"
     post_json(
       "/schemas",
       {
@@ -121,6 +121,53 @@ class ApiTest < Minitest::Test
     )
 
     assert_equal 422, last_response.status
-    assert_match(/Field name expected/, json(last_response.body)["error"])
+    payload = json(last_response.body)
+    assert_equal "Invalid request payload", payload["error"]
+    assert_equal ["Field name expected :string, got Integer"], payload["details"]
+  end
+
+  def test_rejects_invalid_nested_attributes
+    schema_name = "user-#{SecureRandom.hex(4)}"
+    post_json(
+      "/schemas",
+      {
+        name: schema_name,
+        fields: [
+          { name: "name", type: "string" }
+        ]
+      }
+    )
+
+    post_json(
+      "/entities/#{schema_name}",
+      {
+        attributes: [
+          { value: "Ana" }
+        ]
+      }
+    )
+
+    assert_equal 422, last_response.status
+    payload = json(last_response.body)
+    assert_equal "Invalid request payload", payload["error"]
+    assert_equal ["attributes[].name is required"], payload["details"]
+  end
+
+  def test_rejects_invalid_nested_fields
+    schema_name = "schema-#{SecureRandom.hex(4)}"
+    post_json(
+      "/schemas",
+      {
+        name: schema_name,
+        fields: [
+          { type: "string" }
+        ]
+      }
+    )
+
+    assert_equal 422, last_response.status
+    payload = json(last_response.body)
+    assert_equal "Invalid request payload", payload["error"]
+    assert_equal ["fields[].name is required"], payload["details"]
   end
 end

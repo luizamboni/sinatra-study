@@ -1,6 +1,7 @@
 # typed: false
 
 require "sinatra/base"
+require "dry-struct"
 
 require_relative "../app"
 require_relative "../app/dependency_builder"
@@ -17,6 +18,7 @@ module App::Api
     V1 = App::App::App.new(self)
     V1.configure_defaults
     V1.define_error_fallback(ArgumentError, status: 422, response_class: Shared::ErrorResponse)
+    V1.define_error_fallback(Dry::Struct::Error, status: 422, response_class: Shared::ErrorResponse)
     V1.define_error_fallback(StandardError, status: 500, response_class: Shared::ErrorResponse)
 
     V1.get "/schemas", nil, { 200 => Schemas::SchemasResponse } do |request|
@@ -54,6 +56,7 @@ module App::Api
     )
     V2.configure_defaults
     V2.define_error_fallback(ArgumentError, status: 422, response_class: Shared::ErrorResponse)
+    V2.define_error_fallback(Dry::Struct::Error, status: 422, response_class: Shared::ErrorResponse)
     V2.define_error_fallback(StandardError, status: 500, response_class: Shared::ErrorResponse)
 
     V2.get("/v2/schemas", nil, { 200 => Schemas::SchemasResponse }) do |request|

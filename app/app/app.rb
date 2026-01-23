@@ -1,6 +1,7 @@
 # typed: false
 
 require "json"
+require "logger"
 require "sinatra/base"
 require_relative "../app"
 require_relative "../api/open_api"
@@ -86,6 +87,7 @@ module App::App
         app.set :show_exceptions, false
         app.set :protection, false
         app.set :allow_hosts, ["localhost", "127.0.0.1", "[::1]"]
+        app.set :logger, build_logger
       end
     end
 
@@ -135,6 +137,31 @@ module App::App
 
         def error_fallback_for(error)
           app_wrapper&.error_fallback_for(error)
+        end
+
+        def error_response_body(error, fallback)
+          wrapper = app_wrapper
+          wrapper ? wrapper.send(:error_response_body, error, fallback) : nil
+        end
+
+        def log_info(message)
+          wrapper = app_wrapper
+          wrapper&.send(:log_info, message)
+        end
+
+        def log_debug(message)
+          wrapper = app_wrapper
+          wrapper&.send(:log_debug, message)
+        end
+
+        def log_error(message)
+          wrapper = app_wrapper
+          wrapper&.send(:log_error, message)
+        end
+
+        def normalize_error_response(error_response, status)
+          wrapper = app_wrapper
+          wrapper ? wrapper.send(:normalize_error_response, error_response, status) : error_response
         end
       end
     end
@@ -275,10 +302,12 @@ module App::App
         response_body = nil
 
         begin
+          log_info("#{verb.to_s.upcase} #{request.path_info}")
           request_payload = request_class ? require_json_object(request) : nil
           if request_class && request_class.respond_to?(:from_hash)
             request_payload = request_class.from_hash(request_payload)
           end
+          log_debug("request_payload=#{request_payload.inspect}") if request_class
 
           request_obj = build_request(params, request_payload)
 
@@ -299,17 +328,23 @@ module App::App
             response_body = result.body
           end
 
+          if response_body.is_a?(::App::Controllers::Shared::ErrorResponse) && response_status >= 400
+            response_body = normalize_error_response(response_body, response_status)
+          end
+
           if normalized_responses && !normalized_responses.empty?
             expected_class = normalized_responses[response_status]
             if expected_class.nil? || !response_body.is_a?(expected_class)
               raise ArgumentError, "Expected response to be #{expected_class&.name}, got #{response_body.class}"
             end
           end
+          log_info("status=#{response_status}")
         rescue StandardError => error
+          log_error("#{error.class}: #{error.message}")
           fallback = error_fallback_for(error)
           if fallback
             response_status = fallback[:status]
-            response_body = fallback[:response_class].new(error: error.message)
+            response_body = error_response_body(error, fallback)
           else
             raise error
           end
@@ -355,6 +390,105 @@ module App::App
     def build_request(params_hash, request_payload)
       params_hash = params_hash.to_h.transform_values(&:to_s)
       ::App::Controllers::Shared::Request.new(params: params_hash, json: request_payload)
+    end
+
+    def build_logger
+      logger = Logger.new($stdout)
+      level = ENV.fetch("LOG_LEVEL", "INFO").upcase
+      logger.level = case level
+      when "DEBUG" then Logger::DEBUG
+      when "WARN" then Logger::WARN
+      when "ERROR" then Logger::ERROR
+      when "FATAL" then Logger::FATAL
+      else Logger::INFO
+      end
+      logger
+    end
+
+    def log_info(message)
+      @sinatra_app.settings.logger&.info(message)
+    end
+
+    def log_debug(message)
+      @sinatra_app.settings.logger&.debug(message)
+    end
+
+    def log_error(message)
+      @sinatra_app.settings.logger&.error(message)
+    end
+
+    def error_response_body(error, fallback)
+      status = fallback[:status]
+      response_class = fallback[:response_class]
+
+      if status >= 500
+        response_class.new(error: "Internal server error")
+      else
+        details = sanitize_error_details(error)
+        details = ["Invalid request payload"] if details.empty?
+        response_class.new(error: "Invalid request payload", details: details)
+      end
+    end
+
+    def normalize_error_response(error_response, status)
+      response_class = error_response.class
+
+      if status >= 500
+        response_class.new(error: "Internal server error")
+      else
+        details = []
+        details.concat(Array(error_response.details)) if error_response.details
+        if error_response.error && error_response.error != "Invalid request payload"
+          details << error_response.error
+        end
+        details = details.map(&:to_s).map(&:strip).reject(&:empty?).uniq
+        details = ["Invalid request payload"] if details.empty?
+        response_class.new(error: "Invalid request payload", details: details)
+      end
+    end
+
+    def sanitize_error_details(error)
+      if defined?(Dry::Struct::Error) && error.is_a?(Dry::Struct::Error)
+        sanitize_dry_struct_error(error.message)
+      else
+        [error.message]
+      end
+    end
+
+    def sanitize_dry_struct_error(message)
+      details = []
+
+      if message.include?("FieldPayload")
+        details << "fields[].name is required" if message.match?(/:name is missing/)
+        details << "fields[].type is required" if message.match?(/:type is missing/)
+      end
+
+      has_attribute_payload = message.include?("AttributePayload")
+      if has_attribute_payload
+        details << "attributes[].name is required" if message.match?(/:name is missing/)
+        details << "attributes[].value is required" if message.match?(/:value is missing/)
+      end
+
+      if message.include?("CreateSchemaRequest") && !message.include?("FieldPayload")
+        details << "name is required" if message.match?(/:name is missing/)
+        details << "fields is invalid" if message.match?(/invalid type for :fields/)
+      end
+
+      if message.include?("CreateEntityRequest") && !has_attribute_payload
+        details << "attributes is invalid" if message.match?(/invalid type for :attributes/)
+      end
+
+      return details.map(&:strip).uniq unless details.empty?
+
+      message.scan(/invalid type for :([a-zA-Z0-9_]+)/).each do |match|
+        details << "#{match.first} is invalid"
+      end
+
+      message.scan(/:([a-zA-Z0-9_]+) is missing/).each do |match|
+        details << "#{match.first} is required"
+      end
+
+      details.map(&:strip).uniq
     end
 
     public :require_json_object, :build_request, :normalize_payload
