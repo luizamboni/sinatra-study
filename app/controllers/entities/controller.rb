@@ -2,7 +2,6 @@
 
 require "sorbet-runtime"
 require_relative "../../app"
-require_relative "../base_controller"
 require_relative "attribute_payload"
 require_relative "entity_payload"
 require_relative "entity_item"
@@ -14,73 +13,21 @@ require_relative "../shared/request"
 require_relative "../../domain/attribute"
 require_relative "../../services/dynamic_entity_service"
 
-class App::Controllers::EntitiesController < App::Controllers::Base
+class App::Controllers::EntitiesController
   extend T::Sig
 
   Entities = App::Controllers::Entities
   Controllers = App::Controllers
   Services = App::Services
   Domain = App::Domain
-  ErrorResponse = Controllers::ErrorResponse
-  Response = Controllers::Response
-  Request = Controllers::Request
+  Response = Controllers::Shared::Response
+  Request = Controllers::Shared::Request
 
   sig { params(service: Services::DynamicEntityService).void }
   def initialize(service: Services::DynamicEntityService.new)
     super()
     @service = T.let(service, Services::DynamicEntityService)
   end
-
-  SCHEMA_PATH_PARAM = T.let(
-    {
-      "name" => "schema",
-      "in" => "path",
-      "required" => true,
-      "schema" => { "type" => "string" }
-    }.freeze,
-    T::Hash[String, T.untyped]
-  )
-
-  register_route(
-    path: "/entities/{schema}",
-    method: "get",
-    summary: "List entities for schema",
-    action: :index,
-    parameters: [SCHEMA_PATH_PARAM],
-    response_body: Entities::EntitiesResponse,
-    responses: {
-      "200" => {
-        "description" => "Entities list"
-      },
-      "500" => {
-        "description" => "Internal Server Error",
-        "schema_ref" => ErrorResponse
-      }
-    }
-  )
-
-  register_route(
-    path: "/entities/{schema}",
-    method: "post",
-    summary: "Create entity for schema",
-    action: :create,
-    parameters: [SCHEMA_PATH_PARAM],
-    request_body: Entities::CreateEntityRequest,
-    response_body: Entities::EntityPayload,
-    responses: {
-      "200" => {
-        "description" => "Entity created"
-      },
-      "422" => {
-        "description" => "Validation error",
-        "schema_ref" => ErrorResponse
-      },
-      "500" => {
-        "description" => "Internal Server Error",
-        "schema_ref" => ErrorResponse
-      }
-    }
-  )
 
   sig do
     params(
@@ -101,6 +48,8 @@ class App::Controllers::EntitiesController < App::Controllers::Base
       end
     )
     Response.new(status: 200, body: payload)
+  rescue StandardError => error
+    Response.new(status: 500, body: Controllers::Shared::ErrorResponse.new(error: error.message))
   end
 
   sig do
@@ -125,5 +74,9 @@ class App::Controllers::EntitiesController < App::Controllers::Base
     )
 
     Response.new(status: 200, body: response_payload)
+  rescue ArgumentError => error
+    Response.new(status: 422, body: Controllers::Shared::ErrorResponse.new(error: error.message))
+  rescue StandardError => error
+    Response.new(status: 500, body: Controllers::Shared::ErrorResponse.new(error: error.message))
   end
 end

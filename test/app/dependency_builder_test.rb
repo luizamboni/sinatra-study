@@ -46,14 +46,14 @@ class DependencyBuilderTest < Minitest::Test
     )
 
     schemas_response = container.schemas_controller.index(
-      request: App::Controllers::Request.new(params: {}, json: nil)
+      request: App::Controllers::Shared::Request.new(params: {}, json: nil)
     )
     assert_equal 1, schemas_response.body.schemas.size
     first_schema = T.must(schemas_response.body.schemas.first)
     assert_equal schema_name, first_schema.name
 
     entities_response = container.entities_controller.index(
-      request: App::Controllers::Request.new(params: { "schema" => schema_name }, json: nil)
+      request: App::Controllers::Shared::Request.new(params: { "schema" => schema_name }, json: nil)
     )
     assert_equal schema_name, entities_response.body.schema
     assert_equal 1, entities_response.body.entities.size

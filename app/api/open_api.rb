@@ -3,7 +3,6 @@
 require "sorbet-runtime"
 require_relative "../app"
 require_relative "../domain/schema"
-require_relative "../controllers/base_controller"
 require_relative "../controllers/schemas/controller"
 require_relative "../controllers/entities/controller"
 require_relative "../controllers/shared/error_response"
@@ -341,10 +340,10 @@ module App::Api
 
     sig { params(type: T.untyped).returns(T.untyped) }
     def self.unwrap_response_body(type)
-      if type.respond_to?(:raw_type) && type.raw_type == App::Controllers::Response
+      if type.respond_to?(:raw_type) && type.raw_type == App::Controllers::Shared::Response
         return nil
       end
-      if type.respond_to?(:klass) && type.respond_to?(:type_params) && type.klass == App::Controllers::Response
+      if type.respond_to?(:klass) && type.respond_to?(:type_params) && type.klass == App::Controllers::Shared::Response
         type.type_params.first
       else
         type
@@ -355,7 +354,7 @@ module App::Api
     def self.extract_request_payload_type(type)
       return unless type.respond_to?(:klass) && type.respond_to?(:type_params)
 
-      return unless type.klass == App::Controllers::Request
+      return unless type.klass == App::Controllers::Shared::Request
 
       payload_type = type.type_params.first
       return nil if payload_type.is_a?(T::Types::Anything)

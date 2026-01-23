@@ -3,6 +3,8 @@
 require "sorbet-runtime"
 require_relative "../../app"
 
-class App::Controllers::ErrorResponse < T::Struct
-  const :error, String
+module App::Controllers::Shared
+  class ErrorResponse < T::Struct
+    const :error, String
+  end
 end

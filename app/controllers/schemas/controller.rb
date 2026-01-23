@@ -2,7 +2,6 @@
 
 require "sorbet-runtime"
 require_relative "../../app"
-require_relative "../base_controller"
 require_relative "field_payload"
 require_relative "schema_payload"
 require_relative "schemas_response"
@@ -13,39 +12,21 @@ require_relative "../shared/request"
 require_relative "../../domain/field"
 require_relative "../../services/dynamic_entity_service"
 
-class App::Controllers::SchemasController < App::Controllers::Base
+class App::Controllers::SchemasController
   extend T::Sig
 
   Schemas = App::Controllers::Schemas
   Controllers = App::Controllers
   Services = App::Services
   Domain = App::Domain
-  ErrorResponse = Controllers::ErrorResponse
-  Response = Controllers::Response
-  Request = Controllers::Request
+  Response = Controllers::Shared::Response
+  Request = Controllers::Shared::Request
 
   sig { params(service: Services::DynamicEntityService).void }
   def initialize(service: Services::DynamicEntityService.new)
     super()
     @service = T.let(service, Services::DynamicEntityService)
   end
-
-  register_route(
-    path: "/schemas",
-    method: "get",
-    summary: "List schemas",
-    action: :index,
-    response_body: Schemas::SchemasResponse,
-    responses: {
-      "200" => {
-        "description" => "Schemas list"
-      },
-      "500" => {
-        "description" => "Internal Server Error",
-        "schema_ref" => ErrorResponse
-      }
-    }
-  )
 
   sig do
     params(
@@ -62,30 +43,9 @@ class App::Controllers::SchemasController < App::Controllers::Base
       end
     )
     Response.new(status: 200, body: payload)
+  rescue StandardError => error
+    Response.new(status: 500, body: Controllers::Shared::ErrorResponse.new(error: error.message))
   end
-
-  register_route(
-    path: "/schemas",
-    method: "post",
-    summary: "Create schema",
-    action: :create,
-    request_body: Schemas::CreateSchemaRequest,
-    response_body: Schemas::SchemaPayload,
-    responses: {
-      "201" => {
-        "description" => "Schema created"
-      },
-      "422" => {
-        "description" => "Validation error",
-        "schema_ref" => ErrorResponse
-      },
-      "500" => {
-        "description" => "Internal Server Error",
-        "schema_ref" => ErrorResponse
-      }
-    }
-  )
-
 
   sig do
     params(
@@ -103,5 +63,9 @@ class App::Controllers::SchemasController < App::Controllers::Base
       fields: schema.fields.map { |name, type| Schemas::FieldPayload.new(name: name.to_s, type: type.to_s) }
     )
     Response.new(status: 201, body: response_payload)
+  rescue ArgumentError => error
+    Response.new(status: 422, body: Controllers::Shared::ErrorResponse.new(error: error.message))
+  rescue StandardError => error
+    Response.new(status: 500, body: Controllers::Shared::ErrorResponse.new(error: error.message))
   end
 end
