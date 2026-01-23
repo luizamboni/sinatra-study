@@ -132,6 +132,10 @@ module App::App
         def require_json_object(rack_request)
           app_wrapper&.require_json_object(rack_request)
         end
+
+        def error_fallback_for(error)
+          app_wrapper&.error_fallback_for(error)
+        end
       end
     end
 
@@ -163,6 +167,10 @@ module App::App
 
     def define_error_fallback(error_class, status: 500, response_class: ::App::Controllers::Shared::ErrorResponse)
       @error_fallbacks[error_class] = { status: status, response_class: response_class }
+    end
+
+    def error_fallback_for(error)
+      @error_fallbacks.detect { |klass, _| error.is_a?(klass) }&.last
     end
 
     private
@@ -298,7 +306,7 @@ module App::App
             end
           end
         rescue StandardError => error
-          fallback = @error_fallbacks.detect { |klass, _| error.is_a?(klass) }&.last
+          fallback = error_fallback_for(error)
           if fallback
             response_status = fallback[:status]
             response_body = fallback[:response_class].new(error: error.message)

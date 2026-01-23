@@ -14,12 +14,16 @@ module App::Controllers::Schemas
     sig { params(payload: T::Hash[String, T.untyped]).returns(CreateSchemaRequest) }
     def self.from_hash(payload)
       new(
-        name: payload.fetch("name"),
-        fields: payload.fetch("fields").map do |field|
-          FieldPayload.new(
-            name: field.fetch("name"),
-            type: field.fetch("type")
-          )
+        name: payload.fetch("name", nil),
+        fields: begin
+          fields = payload.fetch("fields", nil).to_a
+          raise ArgumentError, "fields must be a non-empty Array" if fields.empty?
+          fields.map do |field|
+            FieldPayload.new(
+              name: field.fetch("name", nil),
+              type: field.fetch("type", nil)
+            )
+          end
         end
       )
     end

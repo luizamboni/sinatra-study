@@ -13,11 +13,15 @@ module App::Controllers::Entities
     sig { params(payload: T::Hash[String, T.untyped]).returns(CreateEntityRequest) }
     def self.from_hash(payload)
       new(
-        attributes: payload.fetch("attributes").map do |attribute|
-          AttributePayload.new(
-            name: attribute.fetch("name"),
-            value: attribute.fetch("value")
-          )
+        attributes: begin
+          attrs = payload.fetch("attributes", nil).to_a
+          raise ArgumentError, "attributes must be a non-empty Array" if attrs.empty?
+          attrs.map do |attribute|
+            AttributePayload.new(
+              name: attribute.fetch("name", nil),
+              value: attribute.fetch("value", nil)
+            )
+          end
         end
       )
     end
