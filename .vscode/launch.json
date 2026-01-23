@@ -1,0 +1,13 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Minitest: current file",
+      "type": "Ruby",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "useBundler": true,
+      "program": "${workspaceFolder}/test/api/api_test.rb"
+    }
+  ]
+}

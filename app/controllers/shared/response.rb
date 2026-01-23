@@ -11,5 +11,6 @@ module App::Controllers::Shared
 
     const :status, Integer
     const :body, Body
+    const :content_type, T.nilable(String), default: nil
   end
 end

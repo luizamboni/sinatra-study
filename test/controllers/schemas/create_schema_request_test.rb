@@ -31,29 +31,32 @@ class CreateSchemaRequestTest < Minitest::Test
 
   sig { void }
   def test_from_hash_rejects_missing_fields
-    error = assert_raises(Dry::Struct::Error) do
+    error = assert_raises(App::Errors::ValidationError) do
       App::Controllers::Schemas::CreateSchemaRequest.from_hash({ "name" => "user" })
     end
 
-    assert_match(/fields/i, error.message)
+    assert_equal "Invalid request payload", error.message
+    assert_equal ["fields is required"], error.details
   end
 
   sig { void }
   def test_from_hash_rejects_nil_fields
-    error = assert_raises(Dry::Struct::Error) do
+    error = assert_raises(App::Errors::ValidationError) do
       App::Controllers::Schemas::CreateSchemaRequest.from_hash({ "name" => "user", "fields" => nil })
     end
 
-    assert_match(/fields/i, error.message)
+    assert_equal "Invalid request payload", error.message
+    assert_equal ["fields is invalid"], error.details
   end
 
   sig { void }
   def test_from_hash_rejects_empty_fields_array
-    error = assert_raises(Dry::Struct::Error) do
+    error = assert_raises(App::Errors::ValidationError) do
       App::Controllers::Schemas::CreateSchemaRequest.from_hash({ "name" => "user", "fields" => [] })
     end
 
-    assert_match(/fields/i, error.message)
+    assert_equal "Invalid request payload", error.message
+    assert_equal ["fields is required"], error.details
   end
 
   sig { void }
@@ -65,11 +68,12 @@ class CreateSchemaRequestTest < Minitest::Test
       ]
     }
 
-    error = assert_raises(Dry::Struct::Error) do
+    error = assert_raises(App::Errors::ValidationError) do
       App::Controllers::Schemas::CreateSchemaRequest.from_hash(payload)
     end
 
-    assert_match(/name/i, error.message)
+    assert_equal "Invalid request payload", error.message
+    assert_equal ["name is required"], error.details.sort
   end
 
   sig { void }
@@ -81,10 +85,11 @@ class CreateSchemaRequestTest < Minitest::Test
       ]
     }
 
-    error = assert_raises(Dry::Struct::Error) do
+    error = assert_raises(App::Errors::ValidationError) do
       App::Controllers::Schemas::CreateSchemaRequest.from_hash(payload)
     end
 
-    assert_match(/name/i, error.message)
+    assert_equal "Invalid request payload", error.message
+    assert_equal ["fields[].name is required", "fields[].type is required"], error.details.sort
   end
 end

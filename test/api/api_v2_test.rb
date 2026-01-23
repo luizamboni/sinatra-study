@@ -7,15 +7,11 @@ require "securerandom"
 require_relative "../test_helper"
 require_relative "../../app/api/api"
 
-class ApiTest < Minitest::Test
+class ApiV2Test < Minitest::Test
   include Rack::Test::Methods
 
   def app
     App::Api::AppApiRoutes
-  end
-
-  def setup
-    @app_wrapper = App::App::App.new(app)
   end
 
   def json(body)
@@ -34,7 +30,7 @@ class ApiTest < Minitest::Test
   def test_creates_schema_and_entity
     schema_name = "user-#{SecureRandom.hex(4)}"
     post_json(
-      "/schemas",
+      "/v2/schemas",
       {
         name: schema_name,
         fields: [
@@ -46,7 +42,7 @@ class ApiTest < Minitest::Test
     assert_equal 201, last_response.status
 
     post_json(
-      "/entities/#{schema_name}",
+      "/v2/entities/#{schema_name}",
       {
         attributes: [
           { name: "name", value: "Ana" },
@@ -70,7 +66,7 @@ class ApiTest < Minitest::Test
   def test_get_entities
     schema_name = "post-#{SecureRandom.hex(4)}"
     post_json(
-      "/schemas",
+      "/v2/schemas",
       {
         name: schema_name,
         fields: [
@@ -80,7 +76,7 @@ class ApiTest < Minitest::Test
     )
 
     post_json(
-      "/entities/#{schema_name}",
+      "/v2/entities/#{schema_name}",
       {
         attributes: [
           { name: "title", value: "Hello" }
@@ -88,7 +84,7 @@ class ApiTest < Minitest::Test
       }
     )
 
-    get "/entities/#{schema_name}", {}, "HTTP_HOST" => "localhost"
+    get "/v2/entities/#{schema_name}", {}, "HTTP_HOST" => "localhost"
 
     assert_equal 200, last_response.status
     payload = json(last_response.body)
@@ -103,7 +99,7 @@ class ApiTest < Minitest::Test
 
   def test_rejects_invalid_entity
     post_json(
-      "/schemas",
+      "/v2/schemas",
       {
         name: "user",
         fields: [
@@ -113,7 +109,7 @@ class ApiTest < Minitest::Test
     )
 
     post_json(
-      "/entities/user",
+      "/v2/entities/user",
       {
         attributes: [
           { name: "name", value: 123 }
@@ -130,7 +126,7 @@ class ApiTest < Minitest::Test
   def test_rejects_invalid_nested_attributes
     schema_name = "user-#{SecureRandom.hex(4)}"
     post_json(
-      "/schemas",
+      "/v2/schemas",
       {
         name: schema_name,
         fields: [
@@ -140,7 +136,7 @@ class ApiTest < Minitest::Test
     )
 
     post_json(
-      "/entities/#{schema_name}",
+      "/v2/entities/#{schema_name}",
       {
         attributes: [
           { value: "Ana" }
@@ -151,24 +147,6 @@ class ApiTest < Minitest::Test
     assert_equal 422, last_response.status
     payload = json(last_response.body)
     assert_equal "Invalid request payload", payload["error"]
-    assert_equal(["attributes[].name is required"], payload["details"])
-  end
-
-  def test_rejects_invalid_nested_fields
-    schema_name = "schema-#{SecureRandom.hex(4)}"
-    post_json(
-      "/schemas",
-      {
-        name: schema_name,
-        fields: [
-          { type: "string" }
-        ]
-      }
-    )
-
-    assert_equal 422, last_response.status
-    payload = json(last_response.body)
-    assert_equal "Invalid request payload", payload["error"]
-    assert_equal(["fields[].name is required"], payload["details"])
+    assert_equal ["attributes[].name is required"], payload["details"]
   end
 end

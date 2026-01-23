@@ -29,29 +29,32 @@ class CreateEntityRequestTest < Minitest::Test
 
   sig { void }
   def test_from_hash_rejects_missing_attributes
-    error = assert_raises(Dry::Struct::Error) do
+    error = assert_raises(App::Errors::ValidationError) do
       App::Controllers::Entities::CreateEntityRequest.from_hash({})
     end
 
-    assert_match(/attributes/i, error.message)
+    assert_equal "Invalid request payload", error.message
+    assert_equal ["attributes is required"], error.details
   end
 
   sig { void }
   def test_from_hash_rejects_empty_attributes_array
-    error = assert_raises(Dry::Struct::Error) do
+    error = assert_raises(App::Errors::ValidationError) do
       App::Controllers::Entities::CreateEntityRequest.from_hash({ "attributes" => [] })
     end
 
-    assert_match(/attributes/i, error.message)
+    assert_equal "Invalid request payload", error.message
+    assert_equal ["attributes is required"], error.details
   end
 
   sig { void }
   def test_from_hash_rejects_nil_attributes
-    error = assert_raises(Dry::Struct::Error) do
+    error = assert_raises(App::Errors::ValidationError) do
       App::Controllers::Entities::CreateEntityRequest.from_hash({ "attributes" => nil })
     end
 
-    assert_match(/attributes/i, error.message)
+    assert_equal "Invalid request payload", error.message
+    assert_equal ["attributes is invalid"], error.details
   end
 
   sig { void }
@@ -62,10 +65,11 @@ class CreateEntityRequestTest < Minitest::Test
       ]
     }
 
-    error = assert_raises(Dry::Struct::Error) do
+    error = assert_raises(App::Errors::ValidationError) do
       App::Controllers::Entities::CreateEntityRequest.from_hash(payload)
     end
 
-    assert_match(/name/i, error.message)
+    assert_equal "Invalid request payload", error.message
+    assert_equal ["attributes[].name is required", "attributes[].value is required"], error.details.sort
   end
 end

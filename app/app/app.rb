@@ -307,6 +307,7 @@ module App::App
       @sinatra_app.send(verb, path) do
         response_status = 200
         response_body = nil
+        response_content_type = nil
 
         begin
           log_info("#{verb.to_s.upcase} #{request.path_info}")
@@ -333,6 +334,7 @@ module App::App
           if result.is_a?(::App::Controllers::Shared::Response)
             response_status = result.status
             response_body = result.body
+            response_content_type = result.content_type
           end
 
           if response_body.is_a?(::App::Controllers::Shared::ErrorResponse) && response_status >= 400
@@ -357,9 +359,14 @@ module App::App
           end
         end
 
-        content_type :json
         status response_status
-        JSON.generate(normalize_payload(response_body))
+        if response_content_type && response_content_type.include?("html")
+          content_type :html
+          response_body.to_s
+        else
+          content_type :json
+          JSON.generate(normalize_payload(response_body))
+        end
       end
     end
 
@@ -457,6 +464,8 @@ module App::App
     def sanitize_error_details(error)
       if error.respond_to?(:details)
         Array(error.details).map(&:to_s)
+      elsif defined?(Dry::Struct::Error) && error.is_a?(Dry::Struct::Error)
+        [error.message.to_s]
       else
         []
       end

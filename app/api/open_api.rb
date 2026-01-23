@@ -506,11 +506,16 @@ module App::Api
         .returns(T::Hash[String, T.untyped])
     end
     def self.dry_struct_schema(klass, schemas)
-      type_map = klass.schema.respond_to?(:to_h) ? klass.schema.to_h : {}
+      schema = klass.schema
+      keys = schema.respond_to?(:keys) ? schema.keys : []
       properties = {}
       required = []
 
-      type_map.each do |name, type|
+      keys.each do |key|
+        name = key.respond_to?(:name) ? key.name : nil
+        type = key.respond_to?(:type) ? key.type : nil
+        next unless name
+
         properties[name.to_s] = schema_for_dry_type(type, schemas) || {}
         required << name.to_s unless dry_type_optional?(type)
       end
@@ -566,9 +571,7 @@ module App::Api
 
     sig { params(raw: T.untyped).returns(T::Boolean) }
     def self.dry_struct_class?(raw)
-      return false unless defined?(Dry::Struct)
-
-      T.cast(raw.is_a?(Class) && raw <= Dry::Struct, T::Boolean)
+      !!(defined?(Dry::Struct) && raw.is_a?(Class) && raw <= Dry::Struct)
     end
     private_class_method :controllers
   end

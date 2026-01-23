@@ -40,12 +40,7 @@ module App::Api
       entities_controller.index(request: request)
     end
 
-    V1.post "/entities/:schema",
-            Entities::CreateEntityRequest,
-            {
-              200 => Entities::EntityPayload,
-              [422, 500] => Shared::ErrorResponse
-            } do |request, _payload|
+    V1.post "/entities/:schema", Entities::CreateEntityRequest, { 200 => Entities::EntityPayload, [422, 500] => Shared::ErrorResponse} do |request, _payload|
       entities_controller.create(request: request)
     end
     V1.define_swagger_routes
@@ -79,6 +74,31 @@ module App::Api
     end
     V2.define_swagger_routes
 
+    # above define_swagger_routes to be not registered 
+    get "/:schema/swagger.json" do
+      request_obj = build_request_from_params
+      response = schemas_controller.swagger_json(request: request_obj, prefix: nil)
+      render_response(response)
+    end
+
+    get "/:schema/docs" do
+      request_obj = build_request_from_params
+      response = schemas_controller.swagger_docs(request: request_obj, prefix: nil)
+      render_response(response)
+    end
+
+    get "/v2/:schema/swagger.json" do
+      request_obj = build_request_from_params
+      response = schemas_controller.swagger_json(request: request_obj, prefix: "/v2")
+      render_response(response)
+    end
+
+    get "/v2/:schema/docs" do
+      request_obj = build_request_from_params
+      response = schemas_controller.swagger_docs(request: request_obj, prefix: "/v2")
+      render_response(response)
+    end
+
 
     private
 
@@ -97,5 +117,22 @@ module App::Api
     def entities_controller
       @entities_controller ||= container.entities_controller
     end
+
+    def build_request_from_params
+      params_hash = params.to_h.transform_values(&:to_s)
+      App::Controllers::Shared::Request.new(params: params_hash, json: nil)
+    end
+
+    def render_response(response)
+      status response.status
+      if response.content_type&.include?("html")
+        content_type :html
+        response.body.to_s
+      else
+        content_type :json
+        JSON.generate(response.body)
+      end
+    end
+
   end
 end

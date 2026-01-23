@@ -11,6 +11,7 @@ gem "rack-test"
 gem "sqlite3"
 gem "debug"
 gem "dry-struct"
+gem "dry-schema"
 
 group :development do
   gem "bundler"
