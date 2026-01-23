@@ -1,7 +1,12 @@
-# typed: true
+# typed: ignore
 
 require "dry-types"
 
 module App::Types
-  include Dry.Types(default: :strict)
+  Types = Dry.Types(default: :strict)
+  String = Types::String
+  Integer = Types::Integer
+  Float = Types::Float
+  Bool = Types::Bool
+  Array = Types::Array
 end

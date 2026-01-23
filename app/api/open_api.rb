@@ -566,7 +566,9 @@ module App::Api
 
     sig { params(raw: T.untyped).returns(T::Boolean) }
     def self.dry_struct_class?(raw)
-      defined?(Dry::Struct) && raw.is_a?(Class) && raw <= Dry::Struct
+      return false unless defined?(Dry::Struct)
+
+      T.cast(raw.is_a?(Class) && raw <= Dry::Struct, T::Boolean)
     end
     private_class_method :controllers
   end
