@@ -24,7 +24,11 @@ module App::Api
     V1.define_error_fallback(StandardError, status: 500, response_class: Shared::ErrorResponse)
 
     V1.get "/schemas", nil, { 200 => Schemas::SchemasResponse } do |request|
-      schemas_controller.index(request: request)
+      schemas_controller.index(request: request, prefix: nil)
+    end
+
+    V1.get "/schemas/docs", nil, { 200 => Object }, { include_in_contract: false } do |request|
+      schemas_controller.index_docs(request: request, prefix: nil)
     end
 
     V1.post "/schemas",
@@ -33,15 +37,15 @@ module App::Api
               201 => Schemas::SchemaPayload,
               [422, 500] => Shared::ErrorResponse
             } do |request, _payload|
-      schemas_controller.create(request: request)
+      schemas_controller.create(request: request, prefix: nil)
     end
 
     V1.get "/entities/:schema", nil, { 200 => Entities::EntitiesResponse } do |request|
-      entities_controller.index(request: request)
+      entities_controller.index(request: request, prefix: nil)
     end
 
     V1.post "/entities/:schema", Entities::CreateEntityRequest, { 200 => Entities::EntityPayload, [422, 500] => Shared::ErrorResponse} do |request, _payload|
-      entities_controller.create(request: request)
+      entities_controller.create(request: request, prefix: nil)
     end
     V1.define_swagger_routes
 
@@ -58,19 +62,23 @@ module App::Api
     V2.define_error_fallback(StandardError, status: 500, response_class: Shared::ErrorResponse)
 
     V2.get("/v2/schemas", nil, { 200 => Schemas::SchemasResponse }) do |request|
-      schemas_controller.index(request: request)
+      schemas_controller.index(request: request, prefix: "/v2")
+    end
+
+    V2.get("/v2/schemas/docs", nil, { 200 => Object }, { include_in_contract: false }) do |request|
+      schemas_controller.index_docs(request: request, prefix: "/v2")
     end
 
     V2.post("/v2/schemas", Schemas::CreateSchemaRequest, { 201 => Schemas::SchemaPayload, [422, 500] => Shared::ErrorResponse}) do |request, _payload|
-      schemas_controller.create(request: request)
+      schemas_controller.create(request: request, prefix: "/v2")
     end
 
     V2.get("/v2/entities/:schema", nil, { 200 => Entities::EntitiesResponse }) do |request|
-      entities_controller.index(request: request)
+      entities_controller.index(request: request, prefix: "/v2")
     end
 
     V2.post("/v2/entities/:schema", Entities::CreateEntityRequest, { 200 => Entities::EntityPayload, [422, 500] => Shared::ErrorResponse}) do |request, _payload|
-      entities_controller.create(request: request)
+      entities_controller.create(request: request, prefix: "/v2")
     end
     V2.define_swagger_routes
 

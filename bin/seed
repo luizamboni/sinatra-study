@@ -25,6 +25,20 @@ def post_json(base_url, path, payload)
   JSON.parse(response.body)
 end
 
+def get_json(base_url, path)
+  uri = URI.join(base_url, path)
+  request = Net::HTTP::Get.new(uri)
+  request["Content-Type"] = "application/json"
+
+  response = Net::HTTP.start(uri.hostname, uri.port) { |http| http.request(request) }
+
+  unless response.is_a?(Net::HTTPSuccess)
+    raise "GET #{path} failed: #{response.code} #{response.body}"
+  end
+
+  JSON.parse(response.body)
+end
+
 schemas = [
   {
     name: user_schema,
@@ -83,8 +97,14 @@ schemas.each do |schema|
   post_json(base_url, "/schemas", schema)
 end
 
+get_json(base_url, "/schemas")
+
 entities.each do |entity|
   post_json(base_url, "/entities/#{entity[:schema]}", attributes: entity[:attributes])
+end
+
+schemas.each do |schema|
+  get_json(base_url, "/entities/#{schema[:name]}")
 end
 
 v2_user_schema = "#{user_schema}_v2"
@@ -148,8 +168,14 @@ v2_schemas.each do |schema|
   post_json(base_url, "/v2/schemas", schema)
 end
 
+get_json(base_url, "/v2/schemas")
+
 v2_entities.each do |entity|
   post_json(base_url, "/v2/entities/#{entity[:schema]}", attributes: entity[:attributes])
+end
+
+v2_schemas.each do |schema|
+  get_json(base_url, "/v2/entities/#{schema[:name]}")
 end
 
 puts "Seeded schemas and entities via #{base_url}"

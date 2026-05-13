@@ -36,7 +36,7 @@ module App::Api
       end
 
       {
-        "openapi" => "3.0.3",
+        "openapi" => "3.1.0",
         "info" => {
           "title" => "Dynamic Entity API",
           "version" => "1.0.0"
@@ -55,14 +55,15 @@ module App::Api
           "type" => "object",
           "required" => ["name", "value"],
           "properties" => {
-            "name" => { "type" => "string", "enum" => [name.to_s] },
+            "name" => const_or_enum(name.to_s),
             "value" => openapi_value_schema(type: type)
           }
         }
       end
+      attribute_schema = one_of_or_single(attribute_variants) || { "type" => "object" }
 
       {
-        "openapi" => "3.0.3",
+        "openapi" => "3.1.0",
         "info" => {
           "title" => "Dynamic Entity API - #{schema.name}",
           "version" => "1.0.0"
@@ -138,14 +139,12 @@ module App::Api
                 "error" => { "type" => "string" }
               }
             },
-            "Attribute" => {
-              "oneOf" => attribute_variants
-            },
+            "Attribute" => attribute_schema,
             "Entity" => {
               "type" => "object",
               "required" => ["schema", "attributes"],
               "properties" => {
-                "schema" => { "type" => "string", "enum" => [schema.name] },
+                "schema" => const_or_enum(schema.name),
                 "attributes" => {
                   "type" => "array",
                   "items" => { "$ref" => "#/components/schemas/Attribute" }
@@ -156,7 +155,7 @@ module App::Api
               "type" => "object",
               "required" => ["schema", "entities"],
               "properties" => {
-                "schema" => { "type" => "string", "enum" => [schema.name] },
+                "schema" => const_or_enum(schema.name),
                 "entities" => {
                   "type" => "array",
                   "items" => {
@@ -554,13 +553,26 @@ module App::Api
         else
           left = schema_for_dry_type(type.left, schemas)
           right = schema_for_dry_type(type.right, schemas)
-          { "oneOf" => [left, right].compact }
+          one_of_or_single([left, right].compact)
         end
       elsif type.respond_to?(:primitive)
         schema_for_raw(type.primitive, schemas)
       else
         nil
       end
+    end
+
+    sig { params(options: T::Array[T.nilable(T::Hash[String, T.untyped])]).returns(T.nilable(T::Hash[String, T.untyped])) }
+    def self.one_of_or_single(options)
+      compact = options.compact
+      return nil if compact.empty?
+      return compact.first if compact.length == 1
+      { "oneOf" => compact }
+    end
+
+    sig { params(values: String).returns(T::Hash[String, T.untyped]) }
+    def self.const_or_enum(values)
+      { "type" => "string", "const" => values }
     end
 
     sig { params(type: T.untyped).returns(T::Boolean) }

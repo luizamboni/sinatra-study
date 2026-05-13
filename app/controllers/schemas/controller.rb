@@ -1,6 +1,7 @@
 # typed: true
 
 require "sorbet-runtime"
+require "cgi"
 require_relative "../../app"
 require_relative "field_payload"
 require_relative "schema_payload"
@@ -30,17 +31,28 @@ class App::Controllers::SchemasController
 
   sig do
     params(
-      request: Request[T.untyped]
+      request: Request[T.untyped],
+      prefix: T.nilable(String)
     ).returns(Response[Schemas::SchemasResponse])
   end
-  def index(request:)
+  def index(request:, prefix: nil)
+    link_prefix = prefix.to_s
     payload = Schemas::SchemasResponse.new(
       schemas: @service.schemas.map do |schema|
         Schemas::SchemaPayload.new(
           name: schema.name,
-          fields: schema.fields.map { |name, type| Schemas::FieldPayload.new(name: name.to_s, type: type.to_s) }
+          fields: schema.fields.map { |name, type| Schemas::FieldPayload.new(name: name.to_s, type: type.to_s) },
+          links: {
+            "docs" => "#{link_prefix}/#{schema.name}/docs",
+            "swagger_json" => "#{link_prefix}/#{schema.name}/swagger.json",
+            "entities" => "#{link_prefix}/entities/#{schema.name}"
+          }
         )
-      end
+      end,
+      links: {
+        "self" => "#{link_prefix}/schemas",
+        "docs" => "#{link_prefix}/schemas/docs"
+      }
     )
     Response.new(status: 200, body: payload)
   rescue StandardError => error
@@ -49,10 +61,12 @@ class App::Controllers::SchemasController
 
   sig do
     params(
-      request: Request[Schemas::CreateSchemaRequest]
+      request: Request[Schemas::CreateSchemaRequest],
+      prefix: T.nilable(String)
     ).returns(Response[Schemas::SchemaPayload])
   end
-  def create(request:)
+  def create(request:, prefix: nil)
+    link_prefix = prefix.to_s
     payload = T.must(request.json)
     fields = payload.fields.map do |field|
       Domain::Field.new(name: field.name, type: field.type)
@@ -60,7 +74,12 @@ class App::Controllers::SchemasController
     schema = @service.define_schema(name: payload.name, fields: fields)
     response_payload = Schemas::SchemaPayload.new(
       name: schema.name,
-      fields: schema.fields.map { |name, type| Schemas::FieldPayload.new(name: name.to_s, type: type.to_s) }
+      fields: schema.fields.map { |name, type| Schemas::FieldPayload.new(name: name.to_s, type: type.to_s) },
+      links: {
+        "docs" => "#{link_prefix}/#{schema.name}/docs",
+        "swagger_json" => "#{link_prefix}/#{schema.name}/swagger.json",
+        "entities" => "#{link_prefix}/entities/#{schema.name}"
+      }
     )
     Response.new(status: 201, body: response_payload)
   end
@@ -103,6 +122,78 @@ class App::Controllers::SchemasController
 
   sig do
     params(
+      request: Request[T.untyped],
+      prefix: T.nilable(String)
+    ).returns(Response[T.untyped])
+  end
+  def index_docs(request:, prefix: nil)
+    schemas = @service.schemas
+
+    link_prefix = prefix.to_s
+    html = <<~HTML
+      <!doctype html>
+      <html lang="en">
+        <head>
+          <meta charset="utf-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1" />
+          <title>Schemas</title>
+          <style>
+            body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; padding: 24px; }
+            h1 { margin: 0 0 16px; font-size: 22px; }
+            table { border-collapse: collapse; width: 100%; }
+            th, td { border-bottom: 1px solid #e6e6e6; padding: 10px 8px; text-align: left; }
+            th { color: #444; font-size: 12px; text-transform: uppercase; letter-spacing: .03em; }
+            code { background: #f6f6f6; padding: 2px 4px; border-radius: 4px; }
+            a { color: #0b5fff; text-decoration: none; }
+            a:hover { text-decoration: underline; }
+          </style>
+        </head>
+        <body>
+          <h1>Schemas (#{schemas.length})</h1>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Fields</th>
+                <th>Links</th>
+              </tr>
+            </thead>
+            <tbody>
+    HTML
+
+    schemas.each do |schema|
+      name = CGI.escapeHTML(schema.name.to_s)
+      fields = schema.fields.map { |field_name, field_type| "#{CGI.escapeHTML(field_name.to_s)}: #{CGI.escapeHTML(field_type.to_s)}" }.join(", ")
+
+      swagger_json_path = "#{link_prefix}/#{schema.name}/swagger.json"
+      docs_path = "#{link_prefix}/#{schema.name}/docs"
+      entities_path = "#{link_prefix}/entities/#{schema.name}"
+
+      html << <<~ROW
+        <tr>
+          <td><code>#{name}</code></td>
+          <td>#{CGI.escapeHTML(fields)}</td>
+          <td>
+            <a href="#{CGI.escapeHTML(docs_path)}">docs</a> |
+            <a href="#{CGI.escapeHTML(swagger_json_path)}">swagger.json</a> |
+            <a href="#{CGI.escapeHTML(entities_path)}">entities</a>
+          </td>
+        </tr>
+      ROW
+    end
+
+    html << <<~HTML
+            </tbody>
+          </table>
+        </body>
+      </html>
+    HTML
+
+    Response.new(status: 200, body: html, content_type: "text/html")
+  end
+
+  sig do
+    params(
       schema_name: String,
       prefix: T.nilable(String)
     ).returns(T.nilable(T::Hash[String, T.untyped]))
@@ -122,23 +213,29 @@ class App::Controllers::SchemasController
         "properties" => {
           "name" => {
             "type" => "string",
-            "enum" => [field_name.to_s]
+            "const" => field_name.to_s
           },
           "value" => schema_for_field_type(field_type)
         },
         "required" => ["name", "value"]
       }
     end
+    attribute_schema =
+      if attribute_one_of.length == 1
+        attribute_one_of.first
+      else
+        { "oneOf" => attribute_one_of }
+      end
 
     components = {
       "schemas" => {
         attribute_item_name => {
-          "oneOf" => attribute_one_of
+          **attribute_schema
         },
         entity_name => {
           "type" => "object",
           "properties" => {
-            "schema" => { "type" => "string" },
+            "schema" => { "type" => "string", "const" => schema.name },
             "attributes" => {
               "type" => "array",
               "items" => { "$ref" => "#/components/schemas/#{attribute_item_name}" }
@@ -149,7 +246,7 @@ class App::Controllers::SchemasController
         entities_response_name => {
           "type" => "object",
           "properties" => {
-            "schema" => { "type" => "string" },
+            "schema" => { "type" => "string", "const" => schema.name },
             "entities" => {
               "type" => "array",
               "items" => {
@@ -171,7 +268,7 @@ class App::Controllers::SchemasController
 
     base_path = prefix ? "#{prefix}/entities/#{schema.name}" : "/entities/#{schema.name}"
     {
-      "openapi" => "3.0.0",
+      "openapi" => "3.1.0",
       "info" => {
         "title" => "#{schema.name} API",
         "version" => "1.0.0"

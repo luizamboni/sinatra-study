@@ -1,4 +1,5 @@
 .PHONY: run server dev-server seed console test rbs check
+.PHONY: up down restart smoke harness-docs
 
 RUBY_VERSION := $(shell cat .ruby-version)
 
@@ -24,3 +25,17 @@ rbs:
 	bundle exec rbs validate
 
 check: test rbs
+
+harness-docs:
+	@echo "See harness/agent_harness.md"
+
+up:
+	docker compose up -d --build
+
+down:
+	docker compose down
+
+restart: down up
+
+smoke:
+	./scripts/agent_harness.sh smoke

@@ -7,5 +7,6 @@ require_relative "schema_payload"
 module App::Controllers::Schemas
   class SchemasResponse < T::Struct
     const :schemas, T::Array[SchemaPayload]
+    const :links, T::Hash[String, String]
   end
 end

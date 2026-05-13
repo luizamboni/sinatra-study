@@ -8,5 +8,6 @@ module App::Controllers::Entities
   class EntityPayload < T::Struct
     const :schema, String
     const :attributes, T::Array[AttributePayload]
+    const :links, T::Hash[String, String]
   end
 end

@@ -8,5 +8,6 @@ module App::Controllers::Schemas
   class SchemaPayload < T::Struct
     const :name, String
     const :fields, T::Array[FieldPayload]
+    const :links, T::Hash[String, String]
   end
 end

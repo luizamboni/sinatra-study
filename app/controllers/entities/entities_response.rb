@@ -8,5 +8,6 @@ module App::Controllers::Entities
   class EntitiesResponse < T::Struct
     const :schema, String
     const :entities, T::Array[EntityItem]
+    const :links, T::Hash[String, String]
   end
 end

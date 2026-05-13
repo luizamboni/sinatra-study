@@ -31,10 +31,12 @@ class App::Controllers::EntitiesController
 
   sig do
     params(
-      request: Request[T.untyped]
+      request: Request[T.untyped],
+      prefix: T.nilable(String)
     ).returns(Response[Entities::EntitiesResponse])
   end
-  def index(request:)
+  def index(request:, prefix: nil)
+    link_prefix = prefix.to_s
     schema_name = request.params.fetch("schema")
     entities = @service.entities_for(schema_name: schema_name)
     payload = Entities::EntitiesResponse.new(
@@ -45,7 +47,13 @@ class App::Controllers::EntitiesController
             Entities::AttributePayload.new(name: attribute.name.to_s, value: attribute.value)
           end
         )
-      end
+      end,
+      links: {
+        "self" => "#{link_prefix}/entities/#{schema_name}",
+        "schema_docs" => "#{link_prefix}/#{schema_name}/docs",
+        "schema_swagger_json" => "#{link_prefix}/#{schema_name}/swagger.json",
+        "schemas" => "#{link_prefix}/schemas"
+      }
     )
     Response.new(status: 200, body: payload)
   rescue StandardError => error
@@ -54,10 +62,12 @@ class App::Controllers::EntitiesController
 
   sig do
     params(
-      request: Request[Entities::CreateEntityRequest]
+      request: Request[Entities::CreateEntityRequest],
+      prefix: T.nilable(String)
     ).returns(Response[Entities::EntityPayload])
   end
-  def create(request:)
+  def create(request:, prefix: nil)
+    link_prefix = prefix.to_s
     schema_name = request.params.fetch("schema")
     payload = T.must(request.json)
     attributes = payload.attributes.map do |attribute|
@@ -70,7 +80,12 @@ class App::Controllers::EntitiesController
       schema: entity.schema_name,
       attributes: entity.attributes.map do |attribute|
         Entities::AttributePayload.new(name: attribute.name.to_s, value: attribute.value)
-      end
+      end,
+      links: {
+        "collection" => "#{link_prefix}/entities/#{schema_name}",
+        "schema_docs" => "#{link_prefix}/#{schema_name}/docs",
+        "schema_swagger_json" => "#{link_prefix}/#{schema_name}/swagger.json"
+      }
     )
 
     Response.new(status: 200, body: response_payload)
